@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Unity.AI.Navigation;
 using UnityEngine;
@@ -48,6 +49,7 @@ namespace NavMeshDiplomaDemo
         private int fpsFrames;
         private float fps;
         private bool initialized;
+        private Coroutine delayedRepathRoutine;
 
         private int ActiveAgentCount
         {
@@ -117,7 +119,7 @@ namespace NavMeshDiplomaDemo
         private void OnGUI()
         {
             const float hudWidth = 360f;
-            const float hudHeight = 250f;
+            const float hudHeight = 315f;
             float hudX = Mathf.Max(12f, Screen.width - hudWidth - 12f);
             GUI.Box(new Rect(hudX, 12, hudWidth, hudHeight), GUIContent.none);
             GUILayout.BeginArea(new Rect(hudX + 10f, 18, hudWidth - 20f, hudHeight - 12f));
@@ -126,11 +128,14 @@ namespace NavMeshDiplomaDemo
             GUILayout.Label($"Mode: {GetModeTitle()}");
             GUILayout.Label($"Expected route: {GetExpectedRoute()}");
             GUILayout.Label($"Actual route: {GetActualRoute()}");
+            GUILayout.Label($"Path status: {GetPathStatus()}");
+            GUILayout.Label($"Repaths: {GetRepathCount()}");
             GUILayout.Label($"Agents: {ActiveAgentCount} active / {ReachedAgentCount} reached");
             GUILayout.Label($"Path length: {AveragePathLength():0.00} m");
             GUILayout.Label($"Travel time: {AverageTravelTimeText()}");
             GUILayout.Label($"Expensive cost: {CurrentExpensiveCost():0.0}");
             GUILayout.Label($"Obstacle: {(obstacleEnabled ? "ON" : "OFF")}   FPS: {fps:0}");
+            GUILayout.Label($"Conclusion: {GetConclusion()}");
             GUILayout.Space(4);
             GUILayout.Label("1 shortest | 2 weighted | 3 obstacle | 4 multi-agent");
             GUILayout.Label("Space start | R reset | C cost | O obstacle | N agents");
@@ -320,6 +325,28 @@ namespace NavMeshDiplomaDemo
             {
                 dynamicObstacle.SetActive(obstacleEnabled);
             }
+
+            if (obstacleEnabled)
+            {
+                ScheduleDelayedRepath();
+            }
+        }
+
+        private void ScheduleDelayedRepath()
+        {
+            if (delayedRepathRoutine != null)
+            {
+                StopCoroutine(delayedRepathRoutine);
+            }
+
+            delayedRepathRoutine = StartCoroutine(RepathAfterObstacleCarving());
+        }
+
+        private IEnumerator RepathAfterObstacleCarving()
+        {
+            yield return null;
+            RecalculateAllPaths();
+            delayedRepathRoutine = null;
         }
 
         private void AssignFinishPoints()
@@ -418,8 +445,8 @@ namespace NavMeshDiplomaDemo
         {
             return mode switch
             {
-                NavMeshDemoMode.ShortestPath => "central shortcut",
-                NavMeshDemoMode.WeightedCost => "long bypass (high cost)",
+                NavMeshDemoMode.ShortestPath => "cost=1 -> central shortcut",
+                NavMeshDemoMode.WeightedCost => "cost=18 -> long bypass",
                 NavMeshDemoMode.DynamicObstacle => "bypass (shortcut blocked)",
                 NavMeshDemoMode.MultiAgent => "several finish points",
                 _ => "-"
@@ -450,15 +477,56 @@ namespace NavMeshDiplomaDemo
 
         private NavMeshPath FirstActivePath()
         {
+            NavMeshDemoAgent demoAgent = FirstActiveAgent();
+            return demoAgent != null ? demoAgent.Agent.path : null;
+        }
+
+        private NavMeshDemoAgent FirstActiveAgent()
+        {
             foreach (NavMeshDemoAgent demoAgent in agents)
             {
                 if (demoAgent.gameObject.activeSelf && demoAgent.Agent != null)
                 {
-                    return demoAgent.Agent.path;
+                    return demoAgent;
                 }
             }
 
             return null;
+        }
+
+        private string GetPathStatus()
+        {
+            NavMeshPath path = FirstActivePath();
+            if (path == null || path.corners.Length == 0)
+            {
+                return "Invalid";
+            }
+
+            return path.status switch
+            {
+                NavMeshPathStatus.PathComplete => "Complete",
+                NavMeshPathStatus.PathPartial => "Partial",
+                NavMeshPathStatus.PathInvalid => "Invalid",
+                _ => path.status.ToString()
+            };
+        }
+
+        private int GetRepathCount()
+        {
+            NavMeshDemoAgent demoAgent = FirstActiveAgent();
+            return demoAgent != null ? demoAgent.RepathCount : 0;
+        }
+
+        private string GetConclusion()
+        {
+            return mode switch
+            {
+                NavMeshDemoMode.ShortestPath => "equal costs prefer distance",
+                NavMeshDemoMode.WeightedCost => "area cost changes route choice",
+                NavMeshDemoMode.DynamicObstacle => "carving blocks the shortcut",
+                NavMeshDemoMode.MultiAgent => "wide finish accepts all agents",
+                _ => "-"
+            };
         }
     }
 }

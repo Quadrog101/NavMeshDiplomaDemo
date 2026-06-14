@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace NavMeshDiplomaDemo
 {
@@ -17,13 +18,30 @@ namespace NavMeshDiplomaDemo
 
         public Vector3 GetDestinationPoint(int agentIndex, int agentCount)
         {
+            if (zoneCollider == null)
+            {
+                zoneCollider = GetComponent<BoxCollider>();
+            }
+
             int safeCount = Mathf.Max(1, agentCount);
             float t = safeCount == 1 ? 0.5f : agentIndex / (float)(safeCount - 1);
-            float z = Mathf.Lerp(-destinationSpread.y * 0.5f, destinationSpread.y * 0.5f, t);
-            float x = safeCount <= 2 ? 0f : ((agentIndex % 2) == 0 ? -0.35f : 0.35f);
+            Bounds bounds = zoneCollider.bounds;
+            float xPadding = Mathf.Min(0.55f, bounds.extents.x * 0.35f);
+            float zPadding = Mathf.Min(0.75f, bounds.extents.z * 0.35f);
+            float zMin = bounds.min.z + zPadding;
+            float zMax = bounds.max.z - zPadding;
+            float xCenter = bounds.center.x;
+            float xOffset = safeCount <= 2 ? 0f : ((agentIndex % 2) == 0 ? -xPadding : xPadding);
 
-            Vector3 localPoint = new(x, 0f, z);
-            return transform.TransformPoint(localPoint);
+            float z = Mathf.Lerp(zMin, zMax, t);
+            Vector3 worldPoint = new(xCenter + xOffset, bounds.center.y, z);
+
+            if (NavMesh.SamplePosition(worldPoint, out NavMeshHit hit, 2.5f, NavMesh.AllAreas))
+            {
+                return hit.position;
+            }
+
+            return bounds.ClosestPoint(worldPoint);
         }
 
         public bool Contains(Vector3 worldPosition)

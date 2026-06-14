@@ -38,13 +38,13 @@
 1. `Shortest path`
    - `Expensive` имеет обычную стоимость.
    - Препятствие выключено.
-   - Ожидаемый маршрут: `central shortcut`.
+   - Ожидаемый маршрут: `cost=1 -> central shortcut`.
    - Вывод: при одинаковой стоимости областей NavMeshAgent выбирает геометрически короткий путь.
 
 2. `Weighted cost`
    - центральная зона `Expensive` получает высокую стоимость.
    - Препятствие выключено.
-   - Ожидаемый маршрут: `long bypass`.
+   - Ожидаемый маршрут: `cost=18 -> long bypass`.
    - Вывод: более длинный маршрут может стать выгоднее, если короткий проход проходит через дорогую область.
 
 3. `Dynamic obstacle`
@@ -79,6 +79,8 @@ HUD показывает:
 - current mode;
 - expected route;
 - actual route;
+- path status: `Complete`, `Partial` или `Invalid`;
+- repaths для первого активного агента;
 - active agents;
 - reached agents;
 - average path length;
@@ -86,6 +88,7 @@ HUD показывает:
 - FPS;
 - текущую стоимость `Expensive`;
 - obstacle on/off.
+- короткий conclusion для текущего режима.
 
 ## Какие выводы можно сделать
 

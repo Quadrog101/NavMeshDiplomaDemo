@@ -29,7 +29,7 @@ namespace NavMeshDiplomaDemo
             Material obstacleMaterial = CreateMaterial("Runtime Obstacle", new Color(0.82f, 0.18f, 0.16f));
             Material agentMaterial = CreateMaterial("Runtime Agent", new Color(0.12f, 0.38f, 0.82f));
             Material finishMaterial = CreateMaterial("Runtime Finish", new Color(0.14f, 0.68f, 0.30f));
-            Material pathMaterial = CreateMaterial("Runtime Path", new Color(0.02f, 0.10f, 0.16f));
+            Material pathMaterial = CreateMaterial("Runtime Path", new Color(1f, 0.95f, 0.05f));
 
             GameObject root = new("NavMesh Demo Runtime");
             GameObject geometryRoot = new("Geometry");
@@ -141,7 +141,7 @@ namespace NavMeshDiplomaDemo
             agentObject.AddComponent<NavMeshDemoAgent>();
             LineRenderer line = agentObject.AddComponent<LineRenderer>();
             line.sharedMaterial = pathMaterial;
-            line.widthMultiplier = 0.12f;
+            line.widthMultiplier = 0.24f;
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             line.receiveShadows = false;
             NavMeshDemoPathRenderer pathRenderer = agentObject.AddComponent<NavMeshDemoPathRenderer>();

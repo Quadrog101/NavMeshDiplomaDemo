@@ -7,7 +7,7 @@ namespace NavMeshDiplomaDemo
     public sealed class NavMeshDemoPathRenderer : MonoBehaviour
     {
         [SerializeField] private NavMeshAgent agent;
-        [SerializeField] private float yOffset = 0.08f;
+        [SerializeField] private float yOffset = 0.18f;
 
         private LineRenderer line;
 
