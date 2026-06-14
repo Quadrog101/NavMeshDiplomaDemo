@@ -1,19 +1,23 @@
 # NavMeshDiplomaDemo
 
-Unity demo for the practical part of the master's topic:
+Unity research prototype for the master's topic:
 
 `Research of NPC navigation algorithms in game scenes with route costs and dynamic obstacles`.
 
-The project is intentionally small. It is a teaching and discussion demo, not a full diploma implementation.
+The project is still compact. It does not implement custom A*, behavior trees, combat, procedural generation, or a full game. It uses Unity AI Navigation to make the core ideas visible.
 
 ## What The Demo Shows
 
-- Unity `NavMeshSurface` builds a walkable navigation representation from scene geometry.
-- `NavMeshAgent` receives a target inside a finish zone and builds a route.
-- Area costs change route choice.
-- `NavMeshObstacle` with carving changes the route at runtime.
-- Several NPC agents can move to one wide finish zone using separate destination points.
-- Global pathfinding and local avoidance are visible as separate ideas.
+- A larger `Desert Route Test` map with a start base on the left and a finish camp on the right.
+- Several distinct routes between start and finish:
+  - `North Road`: long, safe, cheap.
+  - `Central Dunes`: short, but costly because of dunes and heat hazard.
+  - `South Oasis Path`: medium length, mixed terrain, often attractive for some units.
+  - `Canyon Gate`: a narrow route that can be blocked by a dynamic obstacle.
+- Real `NavMeshModifierVolume` areas, not just decorative colors.
+- Different NPC profiles that evaluate the same terrain differently.
+- Runtime obstacle carving and delayed path replanning without a full scene reset.
+- Global pathfinding and local avoidance in multi-agent mode.
 
 ## How To Run
 
@@ -21,7 +25,7 @@ The project is intentionally small. It is a teaching and discussion demo, not a 
 2. Open `Assets/Scenes/NavMeshDemo.unity`.
 3. Press Play.
 
-The scene contains a bootstrap object. In Play Mode it creates the test map, builds a `NavMeshSurface`, creates NPC agents, surface-cost zones, the finish zone, and the dynamic obstacle.
+The scene contains a bootstrap object. In Play Mode it creates the desert test map, builds a `NavMeshSurface`, creates terrain-cost zones, NPC profiles, the finish camp, and the dynamic canyon obstacle.
 
 To recreate the bootstrap scene from Unity, use:
 
@@ -30,73 +34,80 @@ To recreate the bootstrap scene from Unity, use:
 ## Controls
 
 - `1` - shortest path mode.
-- `2` - weighted cost mode.
+- `2` - weighted terrain mode.
 - `3` - dynamic obstacle mode.
-- `4` - multi-agent mode.
+- `4` - multi-agent / multi-class mode.
 - `Space` - start active agents.
 - `R` - reset the current experiment.
-- `C` - toggle the central `Expensive` cost.
-- `O` - toggle the dynamic obstacle during the run; the scene is not fully reset, and the path is recalculated after a one-frame carving delay.
+- `C` - toggle high/low hazard terrain cost.
+- `O` - toggle the canyon obstacle during the run; the scene is not reset.
 - `N` - toggle one NPC / several NPCs.
+
+## Terrain Areas
+
+- `Road` cost 1: long safe route.
+- `PackedSand` cost 2: moderate connector terrain.
+- `DeepSand` cost 4: central dunes.
+- `Rock` cost 3: rough route segment.
+- `Hazard` cost 7 in weighted mode, cost 1 in shortest mode: heat/danger section.
+- `Oasis` cost 1.2: safer southern route.
+- `Not Walkable`: walls, rock islands, and map borders.
+
+## Unit Profiles
+
+- `Scout`: fast, small radius, handles sand/dunes better.
+- `Carrier`: slower, larger, prefers roads and dislikes dunes/hazard.
+- `Ranger`: balanced profile.
+
+The profiles use `NavMeshAgent` speed/radius/acceleration and per-agent `SetAreaCost` values. In multi-agent mode they can choose different routes on the same map.
 
 ## Modes
 
 ### 1. Shortest Path
 
-- `Expensive` cost is low.
-- Obstacle is off.
-- Expected route: `cost=1 -> central shortcut`.
-- Conclusion: with equal costs, the agent prefers the geometrically shorter route.
+- One agent.
+- Hazard cost is low.
+- Expected route: central dunes / short route.
+- Demonstrates geometric route choice when costs do not strongly penalize the shortcut.
 
-### 2. Weighted Cost
+### 2. Weighted Terrain
 
-- The central shortcut uses `Expensive` cost 18.
-- Obstacle is off.
-- Expected route: `cost=18 -> long bypass`.
-- Conclusion: a longer route can become preferable when the short route crosses a high-cost area.
+- One agent.
+- Hazard and dunes are costly.
+- Expected route: North Road or South Oasis instead of the central shortcut.
+- Demonstrates route weights changing global pathfinding.
 
 ### 3. Dynamic Obstacle
 
-- Obstacle is on and blocks the shortcut.
-- The obstacle collider is a trigger, so it does not physically push the NPC.
-- `NavMeshObstacle` uses carving.
-- Pressing `O` during movement toggles the obstacle and demonstrates real-time replanning.
-- Conclusion: dynamic carving changes the navigable space and the agent replans around it.
+- One agent.
+- The canyon gate can be blocked/unblocked with `O` during movement.
+- The obstacle uses `NavMeshObstacle` with carving and a trigger collider, so it does not physically push the NPC.
+- Demonstrates real-time replanning after a one-frame carving delay.
 
-### 4. Multi-Agent
+### 4. Multi-Agent / Multi-Class
 
-- Several NPC agents are active.
-- Each agent receives a separate destination point inside the wide finish zone.
-- Conclusion: a finish zone is more stable than forcing all NPCs into one tiny target point.
-
-## Scene Legend
-
-- Blue area: start zone.
-- Green area: finish zone.
-- Orange area: `Expensive` / dangerous central shortcut.
-- Brown area: `Mud` / slow surface.
-- Gray area: `Road` / preferred surface.
-- Light-blue strips: bypass routes.
-- Red cube: dynamic obstacle.
-- Yellow line: current NavMesh path.
-- Dark walls/islands: blocked geometry / not walkable space.
+- Scout, Carrier, and Ranger are active.
+- Agents have different terrain preferences and separate finish points.
+- Demonstrates global pathfinding differences plus local avoidance between agents.
 
 ## HUD Metrics
 
 The HUD shows:
 
-- current mode;
+- mode;
+- active unit profiles;
+- terrain costs;
 - expected route;
 - actual route;
+- per-agent route summary;
 - path status: `Complete`, `Partial`, or `Invalid`;
-- repaths for the first active agent;
-- active/reached agents;
+- repaths;
 - path length;
 - travel time;
+- obstacle state;
+- active/reached agents;
 - FPS;
-- area costs: Normal, Mud, Road, Expensive;
-- obstacle on/off;
-- short conclusion for the current mode.
+- short conclusion.
 
 ## Supporting Markdown Files
 
@@ -111,9 +122,9 @@ For future work, use `CODEX_TASK_TEMPLATE.md` and describe only the small change
 ## Main Project Files
 
 - `Assets/Scenes/NavMeshDemo.unity` - demo entry scene.
-- `Assets/Scripts/NavMeshDemoBootstrap.cs` - creates the runtime test map.
+- `Assets/Scripts/NavMeshDemoBootstrap.cs` - creates the runtime desert test map.
 - `Assets/Scripts/NavMeshDemoController.cs` - modes, controls, HUD, metrics.
-- `Assets/Scripts/NavMeshDemoAgent.cs` - NPC movement and finish timing.
+- `Assets/Scripts/NavMeshDemoAgent.cs` - NPC profiles, movement, route description, finish timing.
 - `Assets/Scripts/NavMeshDemoFinishZone.cs` - wide finish zone and per-agent destination points.
 - `Assets/Scripts/NavMeshDemoPathRenderer.cs` - path visualization through `LineRenderer`.
 - `Assets/Editor/NavMeshDemoSceneBuilder.cs` - recreates the bootstrap scene from the Unity menu.

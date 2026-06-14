@@ -19,9 +19,12 @@ namespace NavMeshDiplomaDemo
 
     public sealed class NavMeshDemoController : MonoBehaviour
     {
-        private const int ExpensiveArea = 3;
-        private const int MudArea = 4;
-        private const int RoadArea = 5;
+        private const int HazardArea = 3;
+        private const int PackedSandArea = 4;
+        private const int DeepSandArea = 5;
+        private const int RockArea = 6;
+        private const int OasisArea = 7;
+        private const int RoadArea = 8;
 
         [Header("Scene Links")]
         [SerializeField] private NavMeshDemoFinishZone finishZone;
@@ -31,9 +34,12 @@ namespace NavMeshDiplomaDemo
 
         [Header("Experiment Settings")]
         [SerializeField] private float normalAreaCost = 1f;
-        [SerializeField] private float mudAreaCost = 4f;
+        [SerializeField] private float packedSandCost = 2f;
+        [SerializeField] private float deepSandCost = 4f;
+        [SerializeField] private float rockAreaCost = 3f;
+        [SerializeField] private float oasisAreaCost = 1.2f;
         [SerializeField] private float roadAreaCost = 1f;
-        [SerializeField] private float expensiveAreaCost = 18f;
+        [SerializeField] private float hazardAreaCost = 7f;
         [SerializeField] private bool expensiveCostEnabled;
         [SerializeField] private bool obstacleEnabled;
         [SerializeField] private bool multipleAgentsEnabled;
@@ -42,8 +48,8 @@ namespace NavMeshDiplomaDemo
         private readonly Vector3[] spawnOffsets =
         {
             new(0f, 0f, 0f),
-            new(-0.7f, 0f, 1.15f),
-            new(-0.7f, 0f, -1.15f),
+            new(-0.8f, 0f, 1.3f),
+            new(-0.8f, 0f, -1.3f),
             new(-1.4f, 0f, 0f)
         };
 
@@ -137,8 +143,10 @@ namespace NavMeshDiplomaDemo
             GUILayout.Label($"Agents: {ActiveAgentCount} active / {ReachedAgentCount} reached");
             GUILayout.Label($"Path length: {AveragePathLength():0.00} m");
             GUILayout.Label($"Travel time: {AverageTravelTimeText()}");
-            GUILayout.Label($"Expensive cost: {CurrentExpensiveCost():0.0}");
-            GUILayout.Label($"Area costs: Normal {normalAreaCost:0} | Mud {mudAreaCost:0} | Road {roadAreaCost:0}");
+            GUILayout.Label($"Profiles: {GetActiveProfiles()}");
+            GUILayout.Label($"Routes: {GetActiveRoutes()}");
+            GUILayout.Label($"Terrain costs: Road {roadAreaCost:0.0} | Packed {packedSandCost:0.0} | Dunes {deepSandCost:0.0}");
+            GUILayout.Label($"More costs: Rock {rockAreaCost:0.0} | Oasis {oasisAreaCost:0.0} | Hazard {CurrentHazardCost():0.0}");
             GUILayout.Label($"Obstacle: {(obstacleEnabled ? "ON" : "OFF")}   FPS: {fps:0}");
             GUILayout.Label($"Conclusion: {GetConclusion()}");
             GUILayout.Space(4);
@@ -325,13 +333,22 @@ namespace NavMeshDiplomaDemo
 
         private void ApplyCurrentSettings()
         {
-            NavMesh.SetAreaCost(ExpensiveArea, CurrentExpensiveCost());
-            NavMesh.SetAreaCost(MudArea, mudAreaCost);
+            NavMesh.SetAreaCost(HazardArea, CurrentHazardCost());
+            NavMesh.SetAreaCost(PackedSandArea, packedSandCost);
+            NavMesh.SetAreaCost(DeepSandArea, deepSandCost);
+            NavMesh.SetAreaCost(RockArea, rockAreaCost);
+            NavMesh.SetAreaCost(OasisArea, oasisAreaCost);
             NavMesh.SetAreaCost(RoadArea, roadAreaCost);
 
             if (dynamicObstacle != null)
             {
                 dynamicObstacle.SetActive(obstacleEnabled);
+            }
+
+            bool useWeightedProfiles = mode == NavMeshDemoMode.WeightedCost || mode == NavMeshDemoMode.MultiAgent;
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                demoAgent.ApplyProfileAreaCosts(useWeightedProfiles);
             }
 
             if (obstacleEnabled)
@@ -398,9 +415,9 @@ namespace NavMeshDiplomaDemo
             }
         }
 
-        private float CurrentExpensiveCost()
+        private float CurrentHazardCost()
         {
-            return expensiveCostEnabled ? expensiveAreaCost : normalAreaCost;
+            return expensiveCostEnabled ? hazardAreaCost : normalAreaCost;
         }
 
         private float AveragePathLength()
@@ -442,7 +459,7 @@ namespace NavMeshDiplomaDemo
             return mode switch
             {
                 NavMeshDemoMode.ShortestPath => "1 Shortest path",
-                NavMeshDemoMode.WeightedCost => "2 Weighted cost",
+                NavMeshDemoMode.WeightedCost => "2 Weighted terrain",
                 NavMeshDemoMode.DynamicObstacle => "3 Dynamic obstacle",
                 NavMeshDemoMode.MultiAgent => "4 Multi-agent",
                 _ => mode.ToString()
@@ -453,10 +470,10 @@ namespace NavMeshDiplomaDemo
         {
             return mode switch
             {
-                NavMeshDemoMode.ShortestPath => "cost=1 -> central shortcut",
-                NavMeshDemoMode.WeightedCost => "cost=18 -> long bypass",
-                NavMeshDemoMode.DynamicObstacle => "bypass (shortcut blocked)",
-                NavMeshDemoMode.MultiAgent => "several finish points",
+                NavMeshDemoMode.ShortestPath => "Hazard cost=1 -> Central Dunes",
+                NavMeshDemoMode.WeightedCost => "Hazard cost=7 -> North/South route",
+                NavMeshDemoMode.DynamicObstacle => "Canyon gate may replan live",
+                NavMeshDemoMode.MultiAgent => "Scout/Carrier/Ranger compare routes",
                 _ => "-"
             };
         }
@@ -469,18 +486,25 @@ namespace NavMeshDiplomaDemo
                 return "not started";
             }
 
-            float maxAbsZ = 0f;
+            float maxZ = float.MinValue;
+            float minZ = float.MaxValue;
             for (int i = 0; i < path.corners.Length; i++)
             {
-                maxAbsZ = Mathf.Max(maxAbsZ, Mathf.Abs(path.corners[i].z));
+                maxZ = Mathf.Max(maxZ, path.corners[i].z);
+                minZ = Mathf.Min(minZ, path.corners[i].z);
             }
 
-            if (obstacleEnabled)
+            if (maxZ > 5.3f)
             {
-                return maxAbsZ > 2.4f ? "bypass around obstacle" : "shortcut blocked";
+                return obstacleEnabled ? "North Road around gate" : "North Road";
             }
 
-            return maxAbsZ > 2.4f ? "long bypass" : "central shortcut";
+            if (minZ < -5.0f)
+            {
+                return "South Oasis Path";
+            }
+
+            return obstacleEnabled ? "Central/Canyon blocked" : "Central Dunes";
         }
 
         private NavMeshPath FirstActivePath()
@@ -530,11 +554,39 @@ namespace NavMeshDiplomaDemo
             return mode switch
             {
                 NavMeshDemoMode.ShortestPath => "equal costs prefer distance",
-                NavMeshDemoMode.WeightedCost => "area cost changes route choice",
-                NavMeshDemoMode.DynamicObstacle => "carving blocks the shortcut",
-                NavMeshDemoMode.MultiAgent => "wide finish accepts all agents",
+                NavMeshDemoMode.WeightedCost => "terrain weights change route choice",
+                NavMeshDemoMode.DynamicObstacle => "carving triggers live replanning",
+                NavMeshDemoMode.MultiAgent => "profiles value terrain differently",
                 _ => "-"
             };
+        }
+
+        private string GetActiveProfiles()
+        {
+            List<string> profiles = new();
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                if (demoAgent.gameObject.activeSelf)
+                {
+                    profiles.Add(demoAgent.ProfileName);
+                }
+            }
+
+            return profiles.Count == 0 ? "-" : string.Join(", ", profiles);
+        }
+
+        private string GetActiveRoutes()
+        {
+            List<string> routes = new();
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                if (demoAgent.gameObject.activeSelf)
+                {
+                    routes.Add($"{demoAgent.ProfileName}:{demoAgent.DescribeRoute()}");
+                }
+            }
+
+            return routes.Count == 0 ? "-" : string.Join(" | ", routes);
         }
     }
 }

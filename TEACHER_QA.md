@@ -2,37 +2,41 @@
 
 ## Where Is The NavMesh?
 
-The NavMesh is built at runtime by `NavMeshSurface` from the scene colliders. It represents the walkable parts of the test map.
+The NavMesh is built at runtime by `NavMeshSurface` from the colliders on the Desert Route Test map. It represents walkable areas between the start base and the finish camp.
 
 ## Where Is The Graph?
 
-Unity does not expose the NavMesh as a simple hand-written graph in the scene. Conceptually, the NavMesh polygons/regions are graph nodes, their adjacency is graph connectivity, and area costs are weights used during path search.
+Unity does not show a simple explicit graph in the scene. Conceptually, NavMesh polygons/regions are graph nodes, adjacency between polygons is graph connectivity, and terrain costs are edge/area weights.
 
 ## What Are Vertices, Edges, And Weights Here?
 
-- Vertices/nodes: NavMesh polygons or regions used internally by Unity.
-- Edges: neighboring walkable connections between those regions.
-- Weights: traversal distance combined with area cost, such as `Expensive` or `Mud`.
+- Nodes: NavMesh polygons or regions.
+- Edges: possible transitions between neighboring regions.
+- Weights: distance multiplied or biased by area costs such as Road, DeepSand, Hazard, Oasis, and Rock.
 
 ## How Does The NPC Receive A Goal?
 
-Each NPC has a `NavMeshAgent`. The demo assigns a destination point inside the finish zone and calls `SetDestination`.
+Each NPC has a `NavMeshAgent`. The controller assigns a point inside the finish camp and calls `SetDestination`.
 
-## Why Does The Route Change When Area Cost Changes?
+## Why Does The Route Change In Weighted Terrain Mode?
 
-The central shortcut is geometrically short. When its `Expensive` cost is low, it is preferred. When its cost is high, a longer bypass can have lower total weighted cost.
+The central route is shorter, but it crosses DeepSand and Hazard areas. When those costs are high, a longer route through Road or Oasis can have a lower total weighted cost.
+
+## Why Do Different Unit Profiles Matter?
+
+Scout, Carrier, and Ranger use different speed/radius/acceleration values and per-agent area costs. The same map can therefore be evaluated differently by different unit types.
 
 ## Global Pathfinding Vs Local Avoidance
 
-Global pathfinding chooses the overall route on the NavMesh. Local avoidance adjusts agent movement while following the route, especially when several agents move together.
+Global pathfinding chooses the overall route across the NavMesh. Local avoidance adjusts movement while agents follow their routes, especially in multi-agent mode.
 
 ## How Does The Dynamic Obstacle Work?
 
-The obstacle uses `NavMeshObstacle` with carving. It changes the navigable area so the shortcut becomes blocked. The collider is a trigger, so it does not physically push NPCs.
+The canyon gate uses `NavMeshObstacle` with carving. It can be toggled during movement with `O`. The collider is a trigger, so it does not push NPCs physically; the path changes because the NavMesh changes.
 
 ## Current Demo Limitations
 
 - It uses Unity NavMesh rather than a custom A* implementation.
-- It is a controlled test map, not a full game level.
-- Metrics are simple runtime observations, not exported experiment datasets.
-- Area names and costs are configured for demonstration clarity.
+- It is a controlled research test map, not a full game level.
+- Metrics are runtime HUD values, not exported datasets.
+- Unit profiles are simple examples for demonstrating terrain preferences.

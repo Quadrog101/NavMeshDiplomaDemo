@@ -1,24 +1,39 @@
 # DEMO_GOALS.md
 
-The demo must prove a small set of navigation ideas without becoming a full diploma project.
+The demo should be a compact research prototype for NPC navigation, not a full diploma project.
 
-## What The Demo Should Show
+## What The Demo Must Prove
 
-- How Unity `NavMeshSurface` creates a walkable navigation representation from scene geometry.
-- How NavMesh can be explained as a graph-like structure: polygons/regions act like nodes, neighbor connections act like edges, and area costs act like weights.
-- How an NPC receives a goal through `NavMeshAgent.SetDestination`.
-- How real-time pathfinding updates the selected route when costs or obstacles change.
-- How a high-cost area changes route choice even when that route is geometrically shorter.
-- How `NavMeshObstacle` with carving changes the navigable space for a dynamic obstacle.
-- How global pathfinding differs from local avoidance:
-  - global pathfinding chooses the route across the NavMesh;
-  - local avoidance helps agents not collide while following a route.
-- How multiple NPC agents can move to one finish zone using separate destination points.
+- Unity `NavMeshSurface` creates a walkable navigation representation from scene geometry.
+- The NavMesh can be explained as a graph-like structure:
+  - polygons/regions are nodes;
+  - neighbor connections are edges;
+  - area costs are weights.
+- NPCs receive goals through `NavMeshAgent.SetDestination`.
+- Global pathfinding selects a route based on distance and area costs.
+- Different terrain surfaces can influence route selection:
+  - Road;
+  - PackedSand;
+  - DeepSand / Dunes;
+  - Rock / Rough;
+  - Hazard / Heat;
+  - Oasis / SafePath;
+  - Not Walkable.
+- Different unit profiles can evaluate the same terrain differently through per-agent area costs.
+- A `NavMeshObstacle` with carving can block a canyon gate and trigger real-time replanning.
+- Local avoidance is separate from global pathfinding and is visible when several agents move together.
 
-## What The Demo Should Not Become
+## Current Demonstration Modes
 
-- no custom A* implementation;
-- no behavior tree;
-- no combat/gameplay system;
-- no procedural level generator;
-- no large art pass or third-party assets.
+- `1 Shortest Path`: low penalties, central shortcut is preferred.
+- `2 Weighted Terrain`: high terrain penalties, a safer longer route is preferred.
+- `3 Dynamic Obstacle`: canyon gate toggles during movement and causes replanning.
+- `4 Multi-Agent / Multi-Class`: Scout, Carrier, and Ranger move together with different preferences.
+
+## Limits
+
+- No custom A*.
+- No behavior tree.
+- No procedural generation.
+- No large asset system.
+- No combat/RTS logic.

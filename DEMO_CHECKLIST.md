@@ -6,43 +6,60 @@ Use this checklist before showing the demo to the teacher.
 
 - [ ] Open `Assets/Scenes/NavMeshDemo.unity`.
 - [ ] Press Play.
-- [ ] The whole map is visible in Game view with the top-down camera.
-- [ ] HUD is readable and does not hide the route.
+- [ ] The whole Desert Route Test map is visible in Game view.
+- [ ] HUD is readable and does not hide the main route decisions.
+
+## Map Readability
+
+- [ ] Start Base is on the left.
+- [ ] Finish Camp is on the right.
+- [ ] North Road, Central Dunes, South Oasis Path, and Canyon Gate are visually distinct.
+- [ ] Terrain surfaces have different colors and labels.
+- [ ] Rock islands and asymmetric passages make the map look like a test route, not a flat picture.
 
 ## Mode 1: Shortest Path
 
 - [ ] Press `1`, then `Space`.
-- [ ] HUD shows mode `Shortest path`.
-- [ ] Expected route says `cost=1 -> central shortcut`.
-- [ ] The path line goes through the central shortcut.
-- [ ] Travel time finishes when the agent reaches the finish zone.
+- [ ] HUD shows `Shortest path`.
+- [ ] Hazard cost is low.
+- [ ] The route prefers the short Central Dunes path.
+- [ ] Travel time finishes at the finish camp.
 
-## Mode 2: Weighted Cost
+## Mode 2: Weighted Terrain
 
 - [ ] Press `2`, then `Space`.
-- [ ] HUD shows `Expensive` cost as high.
-- [ ] Expected route says `cost=18 -> long bypass`.
-- [ ] The path line chooses a longer bypass instead of the orange expensive shortcut.
+- [ ] HUD shows `Weighted terrain`.
+- [ ] Hazard / dunes costs are high.
+- [ ] The route moves away from the central shortcut toward North Road or South Oasis.
 
 ## Mode 3: Dynamic Obstacle
 
 - [ ] Press `3`, then `Space`.
-- [ ] Obstacle is visible and blocks the shortcut.
-- [ ] `NavMeshObstacle` carving causes a bypass path.
-- [ ] The obstacle does not physically push the NPC.
+- [ ] The canyon gate obstacle is active.
+- [ ] `NavMeshObstacle` carving affects the path.
 - [ ] Press `O` during movement.
-- [ ] The obstacle toggles and the path replans after a short delay.
+- [ ] The obstacle toggles without resetting the scene.
+- [ ] The path replans after a short delay.
+- [ ] The obstacle does not physically push the NPC.
 
-## Mode 4: Multi-Agent
+## Mode 4: Multi-Agent / Multi-Class
 
 - [ ] Press `4`, then `Space`.
-- [ ] Several NPCs are active.
-- [ ] Agents use separate destination points inside the finish zone.
-- [ ] Reached count eventually matches the number of active agents.
+- [ ] Scout, Carrier, and Ranger are active.
+- [ ] Agents have different colors/profiles.
+- [ ] HUD lists active profiles and selected routes.
+- [ ] Agents use separate finish points.
+- [ ] Local avoidance is visible when agents get close.
 
-## Metrics And Readability
+## HUD And Metrics
 
-- [ ] HUD shows mode, expected route, actual route, path status, repaths, path length, travel time, FPS, area costs, obstacle state, and active/reached agents.
-- [ ] Finish zone is large and visually clear.
-- [ ] Path visualization is high contrast.
-- [ ] Start, finish, expensive area, bypasses, obstacle, and surface types are visually distinguishable.
+- [ ] HUD shows mode.
+- [ ] HUD shows selected profiles.
+- [ ] HUD shows terrain costs.
+- [ ] HUD shows expected route and actual route.
+- [ ] HUD shows path status.
+- [ ] HUD shows repaths.
+- [ ] HUD shows path length and travel time.
+- [ ] HUD shows obstacle state.
+- [ ] HUD shows active/reached agents.
+- [ ] HUD shows a short conclusion.
