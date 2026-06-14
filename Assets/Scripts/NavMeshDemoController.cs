@@ -20,6 +20,8 @@ namespace NavMeshDiplomaDemo
     public sealed class NavMeshDemoController : MonoBehaviour
     {
         private const int ExpensiveArea = 3;
+        private const int MudArea = 4;
+        private const int RoadArea = 5;
 
         [Header("Scene Links")]
         [SerializeField] private NavMeshDemoFinishZone finishZone;
@@ -29,6 +31,8 @@ namespace NavMeshDiplomaDemo
 
         [Header("Experiment Settings")]
         [SerializeField] private float normalAreaCost = 1f;
+        [SerializeField] private float mudAreaCost = 4f;
+        [SerializeField] private float roadAreaCost = 1f;
         [SerializeField] private float expensiveAreaCost = 18f;
         [SerializeField] private bool expensiveCostEnabled;
         [SerializeField] private bool obstacleEnabled;
@@ -119,7 +123,7 @@ namespace NavMeshDiplomaDemo
         private void OnGUI()
         {
             const float hudWidth = 360f;
-            const float hudHeight = 315f;
+            const float hudHeight = 340f;
             float hudX = Mathf.Max(12f, Screen.width - hudWidth - 12f);
             GUI.Box(new Rect(hudX, 12, hudWidth, hudHeight), GUIContent.none);
             GUILayout.BeginArea(new Rect(hudX + 10f, 18, hudWidth - 20f, hudHeight - 12f));
@@ -134,6 +138,7 @@ namespace NavMeshDiplomaDemo
             GUILayout.Label($"Path length: {AveragePathLength():0.00} m");
             GUILayout.Label($"Travel time: {AverageTravelTimeText()}");
             GUILayout.Label($"Expensive cost: {CurrentExpensiveCost():0.0}");
+            GUILayout.Label($"Area costs: Normal {normalAreaCost:0} | Mud {mudAreaCost:0} | Road {roadAreaCost:0}");
             GUILayout.Label($"Obstacle: {(obstacleEnabled ? "ON" : "OFF")}   FPS: {fps:0}");
             GUILayout.Label($"Conclusion: {GetConclusion()}");
             GUILayout.Space(4);
@@ -284,6 +289,7 @@ namespace NavMeshDiplomaDemo
             if (obstacleEnabled)
             {
                 mode = NavMeshDemoMode.DynamicObstacle;
+                expensiveCostEnabled = false;
             }
             else if (mode == NavMeshDemoMode.DynamicObstacle)
             {
@@ -291,7 +297,7 @@ namespace NavMeshDiplomaDemo
             }
 
             ApplyCurrentSettings();
-            ResetDemo();
+            ScheduleDelayedRepath();
         }
 
         public void ToggleNpcCount()
@@ -320,6 +326,8 @@ namespace NavMeshDiplomaDemo
         private void ApplyCurrentSettings()
         {
             NavMesh.SetAreaCost(ExpensiveArea, CurrentExpensiveCost());
+            NavMesh.SetAreaCost(MudArea, mudAreaCost);
+            NavMesh.SetAreaCost(RoadArea, roadAreaCost);
 
             if (dynamicObstacle != null)
             {

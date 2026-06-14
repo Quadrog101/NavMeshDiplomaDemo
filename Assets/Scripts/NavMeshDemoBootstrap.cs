@@ -9,6 +9,8 @@ namespace NavMeshDiplomaDemo
     public sealed class NavMeshDemoBootstrap : MonoBehaviour
     {
         private const int ExpensiveArea = 3;
+        private const int MudArea = 4;
+        private const int RoadArea = 5;
 
         private void Start()
         {
@@ -25,6 +27,8 @@ namespace NavMeshDiplomaDemo
             Material floorMaterial = CreateMaterial("Runtime Floor", new Color(0.70f, 0.73f, 0.68f));
             Material wallMaterial = CreateMaterial("Runtime Wall", new Color(0.25f, 0.28f, 0.31f));
             Material expensiveMaterial = CreateMaterial("Runtime Expensive", new Color(0.95f, 0.58f, 0.18f));
+            Material mudMaterial = CreateMaterial("Runtime Mud", new Color(0.46f, 0.34f, 0.24f));
+            Material roadMaterial = CreateMaterial("Runtime Road", new Color(0.38f, 0.44f, 0.48f));
             Material bypassMaterial = CreateMaterial("Runtime Bypass", new Color(0.52f, 0.64f, 0.86f));
             Material obstacleMaterial = CreateMaterial("Runtime Obstacle", new Color(0.82f, 0.18f, 0.16f));
             Material agentMaterial = CreateMaterial("Runtime Agent", new Color(0.12f, 0.38f, 0.82f));
@@ -45,22 +49,29 @@ namespace NavMeshDiplomaDemo
             CreateCube("Barrier Upper B", new Vector3(0f, 0.55f, 2.1f), new Vector3(0.45f, 1.1f, 1.9f), wallMaterial, geometryRoot.transform);
             CreateCube("Barrier Lower A", new Vector3(0f, 0.55f, -2.1f), new Vector3(0.45f, 1.1f, 1.9f), wallMaterial, geometryRoot.transform);
             CreateCube("Barrier Lower B", new Vector3(0f, 0.55f, -6.75f), new Vector3(0.45f, 1.1f, 3.7f), wallMaterial, geometryRoot.transform);
+            CreateCube("Upper Route Island", new Vector3(-4.2f, 0.45f, 4.7f), new Vector3(1.8f, 0.9f, 0.9f), wallMaterial, geometryRoot.transform);
+            CreateCube("Lower Route Island", new Vector3(4.2f, 0.45f, -4.7f), new Vector3(1.8f, 0.9f, 0.9f), wallMaterial, geometryRoot.transform);
 
             GameObject costZone = CreateCube("Expensive Cost Zone", new Vector3(0f, 0.02f, 0f), new Vector3(6.2f, 0.04f, 2.8f), expensiveMaterial, geometryRoot.transform);
             costZone.GetComponent<Collider>().enabled = false;
             NavMeshModifierVolume modifierVolume = costZone.AddComponent<NavMeshModifierVolume>();
             modifierVolume.area = ExpensiveArea;
             modifierVolume.center = Vector3.zero;
-            modifierVolume.size = new Vector3(6.2f, 1.2f, 2.8f);
+            modifierVolume.size = new Vector3(1f, 30f, 1f);
 
             GameObject upperBypass = CreateCube("Upper Bypass Marker", new Vector3(0f, 0.01f, 4.7f), new Vector3(20f, 0.02f, 1.0f), bypassMaterial, geometryRoot.transform);
             GameObject lowerBypass = CreateCube("Lower Bypass Marker", new Vector3(0f, 0.01f, -4.7f), new Vector3(20f, 0.02f, 1.0f), bypassMaterial, geometryRoot.transform);
             upperBypass.GetComponent<Collider>().enabled = false;
             lowerBypass.GetComponent<Collider>().enabled = false;
 
+            GameObject mudZone = CreateAreaVolume("Mud Slow Zone", new Vector3(-2.5f, 0.02f, 4.7f), new Vector3(4.8f, 0.04f, 1.4f), mudMaterial, geometryRoot.transform, MudArea);
+            GameObject roadZone = CreateAreaVolume("Road Preferred Zone", new Vector3(2.5f, 0.025f, -4.7f), new Vector3(6.0f, 0.05f, 1.4f), roadMaterial, geometryRoot.transform, RoadArea);
+            mudZone.GetComponent<Collider>().enabled = false;
+            roadZone.GetComponent<Collider>().enabled = false;
+
             CreateRouteLabel("EXPENSIVE SHORTCUT", new Vector3(0f, 0.08f, 0f), geometryRoot.transform);
-            CreateRouteLabel("LONG BYPASS", new Vector3(0f, 0.08f, 4.7f), geometryRoot.transform);
-            CreateRouteLabel("LONG BYPASS", new Vector3(0f, 0.08f, -4.7f), geometryRoot.transform);
+            CreateRouteLabel("MUD BYPASS cost 4", new Vector3(-1.5f, 0.08f, 5.65f), geometryRoot.transform);
+            CreateRouteLabel("ROAD BYPASS cost 1", new Vector3(1.5f, 0.08f, -5.65f), geometryRoot.transform);
 
             GameObject startZone = CreateCylinder("Start Zone", new Vector3(-10f, 0.03f, 0f), new Vector3(1.8f, 0.06f, 1.8f), agentMaterial, root.transform);
             startZone.GetComponent<Collider>().enabled = false;
@@ -159,6 +170,16 @@ namespace NavMeshDiplomaDemo
             cube.transform.localScale = scale;
             cube.GetComponent<Renderer>().sharedMaterial = material;
             return cube;
+        }
+
+        private static GameObject CreateAreaVolume(string name, Vector3 position, Vector3 scale, Material material, Transform parent, int area)
+        {
+            GameObject marker = CreateCube(name, position, scale, material, parent);
+            NavMeshModifierVolume volume = marker.AddComponent<NavMeshModifierVolume>();
+            volume.area = area;
+            volume.center = Vector3.zero;
+            volume.size = new Vector3(1f, 30f, 1f);
+            return marker;
         }
 
         private static GameObject CreateCylinder(string name, Vector3 position, Vector3 scale, Material material, Transform parent)

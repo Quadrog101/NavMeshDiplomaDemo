@@ -13,9 +13,9 @@ NavMeshProjectSettings:
     cost: 2
   - name: Expensive
     cost: 18
-  - name: 
-    cost: 1
-  - name: 
+  - name: Mud
+    cost: 4
+  - name: Road
     cost: 1
   - name: 
     cost: 1

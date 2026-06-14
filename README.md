@@ -1,110 +1,119 @@
 # NavMeshDiplomaDemo
 
-Практическая демо-сцена для магистерской работы:
-«Исследование алгоритмов навигации NPC в игровых сценах с учётом стоимостей маршрута и динамических препятствий».
+Unity demo for the practical part of the master's topic:
 
-Демка показывает, как один и тот же `NavMeshAgent` меняет поведение при разных условиях:
+`Research of NPC navigation algorithms in game scenes with route costs and dynamic obstacles`.
 
-- обычный кратчайший путь;
-- маршрут с учётом стоимости зоны `Expensive`;
-- перестроение пути при динамическом препятствии;
-- движение нескольких NPC к общей финишной области.
+The project is intentionally small. It is a teaching and discussion demo, not a full diploma implementation.
 
-## Как открыть
+## What The Demo Shows
 
-1. Открыть проект в Unity.
-2. Открыть сцену `Assets/Scenes/NavMeshDemo.unity`.
-3. Запустить Play Mode.
+- Unity `NavMeshSurface` builds a walkable navigation representation from scene geometry.
+- `NavMeshAgent` receives a target inside a finish zone and builds a route.
+- Area costs change route choice.
+- `NavMeshObstacle` with carving changes the route at runtime.
+- Several NPC agents can move to one wide finish zone using separate destination points.
+- Global pathfinding and local avoidance are visible as separate ideas.
 
-Сцена содержит bootstrap-объект. При запуске он создаёт экспериментальную площадку, строит `NavMeshSurface`, добавляет NPC, финишную зону, дорогую область и динамическое препятствие.
+## How To Run
 
-Если нужно пересоздать bootstrap-сцену, в Unity есть меню:
-`Tools/NavMesh Diploma Demo/Rebuild Bootstrap Scene`.
+1. Open the project in Unity.
+2. Open `Assets/Scenes/NavMeshDemo.unity`.
+3. Press Play.
 
-## Управление
+The scene contains a bootstrap object. In Play Mode it creates the test map, builds a `NavMeshSurface`, creates NPC agents, surface-cost zones, the finish zone, and the dynamic obstacle.
 
-- `1` - `Shortest path`.
-- `2` - `Weighted cost`.
-- `3` - `Dynamic obstacle`.
-- `4` - `Multi-agent`.
-- `Space` - старт движения.
-- `R` - сброс текущего эксперимента.
-- `C` - вручную переключить стоимость зоны `Expensive`.
-- `O` - вручную включить/выключить динамическое препятствие. При переключении эксперимент сбрасывается на старт, чтобы препятствие влияло на маршрут, а не толкало NPC.
-- `N` - вручную переключить один NPC / несколько NPC.
+To recreate the bootstrap scene from Unity, use:
 
-## Режимы
+`Tools/NavMesh Diploma Demo/Rebuild Bootstrap Scene`
 
-1. `Shortest path`
-   - `Expensive` имеет обычную стоимость.
-   - Препятствие выключено.
-   - Ожидаемый маршрут: `cost=1 -> central shortcut`.
-   - Вывод: при одинаковой стоимости областей NavMeshAgent выбирает геометрически короткий путь.
+## Controls
 
-2. `Weighted cost`
-   - центральная зона `Expensive` получает высокую стоимость.
-   - Препятствие выключено.
-   - Ожидаемый маршрут: `cost=18 -> long bypass`.
-   - Вывод: более длинный маршрут может стать выгоднее, если короткий проход проходит через дорогую область.
+- `1` - shortest path mode.
+- `2` - weighted cost mode.
+- `3` - dynamic obstacle mode.
+- `4` - multi-agent mode.
+- `Space` - start active agents.
+- `R` - reset the current experiment.
+- `C` - toggle the central `Expensive` cost.
+- `O` - toggle the dynamic obstacle during the run; the scene is not fully reset, and the path is recalculated after a one-frame carving delay.
+- `N` - toggle one NPC / several NPCs.
 
-3. `Dynamic obstacle`
-   - препятствие включено до старта движения.
-   - физический `Collider` препятствия работает как trigger, поэтому он не отталкивает NPC.
-   - `NavMeshObstacle` использует carving и перекрывает центральный путь.
-   - Ожидаемый маршрут: `bypass because shortcut blocked`.
-   - Вывод: динамическое препятствие меняет навигационную область, и агент строит путь вокруг него.
+## Modes
 
-4. `Multi-agent`
-   - активируются несколько NPC.
-   - Финишная зона широкая, у каждого NPC своя точка внутри неё.
-   - Ожидаемый маршрут: несколько агентов идут к разным точкам одной finish zone.
-   - Вывод: крупная цель и распределение destination-точек делают достижение финиша стабильным для группы.
+### 1. Shortest Path
 
-## Что видно в сцене
+- `Expensive` cost is low.
+- Obstacle is off.
+- Expected route: `cost=1 -> central shortcut`.
+- Conclusion: with equal costs, the agent prefers the geometrically shorter route.
 
-- Синяя область слева - старт.
-- Зелёная область справа - крупная финишная зона.
-- Оранжевая центральная область - зона `Expensive`.
-- Голубые полосы сверху и снизу - длинные обходные маршруты.
-- Красный куб - динамическое препятствие.
-- Тёмная линия - текущий путь агента.
-- Подписи показывают короткий дорогой проход и длинные обходы.
+### 2. Weighted Cost
 
-Камера настроена как top-down orthographic, чтобы вся экспериментальная площадка была видна в Game view.
+- The central shortcut uses `Expensive` cost 18.
+- Obstacle is off.
+- Expected route: `cost=18 -> long bypass`.
+- Conclusion: a longer route can become preferable when the short route crosses a high-cost area.
 
-## Метрики на экране
+### 3. Dynamic Obstacle
 
-HUD показывает:
+- Obstacle is on and blocks the shortcut.
+- The obstacle collider is a trigger, so it does not physically push the NPC.
+- `NavMeshObstacle` uses carving.
+- Pressing `O` during movement toggles the obstacle and demonstrates real-time replanning.
+- Conclusion: dynamic carving changes the navigable space and the agent replans around it.
+
+### 4. Multi-Agent
+
+- Several NPC agents are active.
+- Each agent receives a separate destination point inside the wide finish zone.
+- Conclusion: a finish zone is more stable than forcing all NPCs into one tiny target point.
+
+## Scene Legend
+
+- Blue area: start zone.
+- Green area: finish zone.
+- Orange area: `Expensive` / dangerous central shortcut.
+- Brown area: `Mud` / slow surface.
+- Gray area: `Road` / preferred surface.
+- Light-blue strips: bypass routes.
+- Red cube: dynamic obstacle.
+- Yellow line: current NavMesh path.
+- Dark walls/islands: blocked geometry / not walkable space.
+
+## HUD Metrics
+
+The HUD shows:
 
 - current mode;
 - expected route;
 - actual route;
-- path status: `Complete`, `Partial` или `Invalid`;
-- repaths для первого активного агента;
-- active agents;
-- reached agents;
-- average path length;
-- average travel time для достигших финиша;
+- path status: `Complete`, `Partial`, or `Invalid`;
+- repaths for the first active agent;
+- active/reached agents;
+- path length;
+- travel time;
 - FPS;
-- текущую стоимость `Expensive`;
-- obstacle on/off.
-- короткий conclusion для текущего режима.
+- area costs: Normal, Mud, Road, Expensive;
+- obstacle on/off;
+- short conclusion for the current mode.
 
-## Какие выводы можно сделать
+## Supporting Markdown Files
 
-- `NavMesh` задаёт проходимую геометрию сцены.
-- `NavMeshAgent` строит путь не только по длине, но и по стоимости областей.
-- При низкой стоимости `Expensive` кратчайший центральный маршрут выгоден.
-- При высокой стоимости `Expensive` более длинный обход становится предпочтительным.
-- `NavMeshObstacle` с carving динамически меняет доступную навигационную область.
-- В multi-agent режиме распределение финишных точек внутри зоны уменьшает толкание NPC в одну точку и делает замер времени стабильнее.
+- `AGENTS.md` - working rules for future Codex changes.
+- `DEMO_GOALS.md` - what the demo must prove.
+- `DEMO_CHECKLIST.md` - checklist before showing the demo to the teacher.
+- `TEACHER_QA.md` - short answers to likely teacher questions.
+- `CODEX_TASK_TEMPLATE.md` - template for future short Codex tasks.
 
-## Основные файлы
+For future work, use `CODEX_TASK_TEMPLATE.md` and describe only the small change needed, what not to touch, and how to verify it in Unity.
 
-- `Assets/Scenes/NavMeshDemo.unity` - сцена запуска демки.
-- `Assets/Scripts/NavMeshDemoBootstrap.cs` - создаёт экспериментальную сцену в Play Mode.
-- `Assets/Scripts/NavMeshDemoController.cs` - режимы, управление, HUD и метрики.
-- `Assets/Scripts/NavMeshDemoAgent.cs` - движение NPC и фиксация достижения финиша.
-- `Assets/Scripts/NavMeshDemoFinishZone.cs` - крупная финишная зона и распределение точек для NPC.
-- `Assets/Scripts/NavMeshDemoPathRenderer.cs` - визуализация пути через `LineRenderer`.
-- `Assets/Editor/NavMeshDemoSceneBuilder.cs` - пересоздание bootstrap-сцены из меню Unity.
+## Main Project Files
+
+- `Assets/Scenes/NavMeshDemo.unity` - demo entry scene.
+- `Assets/Scripts/NavMeshDemoBootstrap.cs` - creates the runtime test map.
+- `Assets/Scripts/NavMeshDemoController.cs` - modes, controls, HUD, metrics.
+- `Assets/Scripts/NavMeshDemoAgent.cs` - NPC movement and finish timing.
+- `Assets/Scripts/NavMeshDemoFinishZone.cs` - wide finish zone and per-agent destination points.
+- `Assets/Scripts/NavMeshDemoPathRenderer.cs` - path visualization through `LineRenderer`.
+- `Assets/Editor/NavMeshDemoSceneBuilder.cs` - recreates the bootstrap scene from the Unity menu.
