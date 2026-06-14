@@ -15,7 +15,8 @@ The project is still compact. It does not implement custom A*, behavior trees, c
   - `South Oasis Path`: medium length, mixed terrain, often attractive for some units.
   - `Canyon Gate`: a narrow route that can be blocked by a dynamic obstacle.
 - Real `NavMeshModifierVolume` areas, not just decorative colors.
-- Different NPC profiles that evaluate the same terrain differently.
+- Different NPC profiles that evaluate the same terrain differently: `Scout`, `Carrier`, and `Nomad`.
+- Approximate route-resource metrics: distance, time, water, food, stamina, risk, and oasis bonus.
 - Runtime obstacle carving and delayed path replanning without a full scene reset.
 - Global pathfinding and local avoidance in multi-agent mode.
 
@@ -49,15 +50,16 @@ To recreate the bootstrap scene from Unity, use:
 - `PackedSand` cost 2: moderate connector terrain.
 - `DeepSand` cost 4: central dunes.
 - `Rock` cost 3: rough route segment.
-- `Hazard` cost 7 in weighted mode, cost 1 in shortest mode: heat/danger section.
-- `Oasis` cost 1.2: safer southern route.
+- `Hazard` cost 18 in weighted mode, cost 1 in shortest mode: heat/danger section.
+- `Oasis` cost 1.1: safer southern route with a resource bonus in the HUD metrics.
+- `River` cost 3: expensive crossing/ford area.
 - `Not Walkable`: walls, rock islands, and map borders.
 
 ## Unit Profiles
 
 - `Scout`: fast, small radius, handles sand/dunes better.
 - `Carrier`: slower, larger, prefers roads and dislikes dunes/hazard.
-- `Ranger`: balanced profile.
+- `Nomad`: balanced desert/oasis profile, uses less water and benefits more from the oasis.
 
 The profiles use `NavMeshAgent` speed/radius/acceleration and per-agent `SetAreaCost` values. In multi-agent mode they can choose different routes on the same map.
 
@@ -66,27 +68,27 @@ The profiles use `NavMeshAgent` speed/radius/acceleration and per-agent `SetArea
 ### 1. Shortest Path
 
 - One agent.
-- Hazard cost is low.
-- Expected route: central dunes / short route.
+- Hazard and sand costs are effectively low (`cost=1`).
+- Expected route: central desert shortcut.
 - Demonstrates geometric route choice when costs do not strongly penalize the shortcut.
 
 ### 2. Weighted Terrain
 
 - One agent.
-- Hazard and dunes are costly.
-- Expected route: North Road or South Oasis instead of the central shortcut.
-- Demonstrates route weights changing global pathfinding.
+- Hazard is costly (`cost=18`) and dunes/river/rock also have non-equal costs.
+- Expected route: long bypass through Oasis/Road instead of the central shortcut.
+- Demonstrates route weights and resource interpretation changing global pathfinding.
 
 ### 3. Dynamic Obstacle
 
 - One agent.
-- The canyon gate can be blocked/unblocked with `O` during movement.
+- The canyon gate starts blocked in mode `3` and can be unblocked/blocked with `O` during movement.
 - The obstacle uses `NavMeshObstacle` with carving and a trigger collider, so it does not physically push the NPC.
 - Demonstrates real-time replanning after a one-frame carving delay.
 
 ### 4. Multi-Agent / Multi-Class
 
-- Scout, Carrier, and Ranger are active.
+- Scout, Carrier, and Nomad are active.
 - Agents have different terrain preferences and separate finish points.
 - Demonstrates global pathfinding differences plus local avoidance between agents.
 
@@ -97,6 +99,7 @@ The HUD shows:
 - mode;
 - active unit profiles;
 - terrain costs;
+- route-resource metrics: water, food, stamina, risk, and oasis bonus;
 - expected route;
 - actual route;
 - per-agent route summary;

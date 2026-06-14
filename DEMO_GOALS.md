@@ -18,17 +18,27 @@ The demo should be a compact research prototype for NPC navigation, not a full d
   - Rock / Rough;
   - Hazard / Heat;
   - Oasis / SafePath;
+  - River / Ford;
+  - Road;
   - Not Walkable.
+- Route choice can also be explained through approximate resource metrics:
+  - distance;
+  - time;
+  - water;
+  - food;
+  - stamina;
+  - risk;
+  - oasis bonus.
 - Different unit profiles can evaluate the same terrain differently through per-agent area costs.
 - A `NavMeshObstacle` with carving can block a canyon gate and trigger real-time replanning.
 - Local avoidance is separate from global pathfinding and is visible when several agents move together.
 
 ## Current Demonstration Modes
 
-- `1 Shortest Path`: low penalties, central shortcut is preferred.
-- `2 Weighted Terrain`: high terrain penalties, a safer longer route is preferred.
-- `3 Dynamic Obstacle`: canyon gate toggles during movement and causes replanning.
-- `4 Multi-Agent / Multi-Class`: Scout, Carrier, and Ranger move together with different preferences.
+- `1 Shortest Path`: effective cost is 1, central desert shortcut is preferred.
+- `2 Resource-weighted`: Hazard cost is 18, terrain/resource penalties make the route move to Oasis/Road bypass.
+- `3 Dynamic Obstacle`: Canyon Gate is carved into the NavMesh and toggles during movement, causing replanning.
+- `4 Multi-Profile`: Scout, Carrier, and Nomad move together with different terrain preferences.
 
 ## Limits
 

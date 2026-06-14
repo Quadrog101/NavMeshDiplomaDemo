@@ -12,6 +12,7 @@ namespace NavMeshDiplomaDemo
         private const int RockArea = 6;
         private const int OasisArea = 7;
         private const int RoadArea = 8;
+        private const int RiverArea = 9;
 
         [SerializeField] private float destinationEpsilon = 0.65f;
 
@@ -23,7 +24,7 @@ namespace NavMeshDiplomaDemo
         private float startTime;
 
         public NavMeshAgent Agent => agent;
-        public string ProfileName { get; private set; } = "Ranger";
+        public string ProfileName { get; private set; } = "Scout";
         public float PathLength { get; private set; }
         public float TravelTime { get; private set; }
         public int RepathCount { get; private set; }
@@ -73,20 +74,23 @@ namespace NavMeshDiplomaDemo
 
             if (!weighted)
             {
-                SetAreaCosts(1f, 1f, 1f, 1.1f, 1f, 1f);
+                SetAreaCosts(1f, 1f, 1f, 1.1f, 1f, 1f, 1f);
                 return;
             }
 
             switch (ProfileName)
             {
                 case "Scout":
-                    SetAreaCosts(4f, 1.7f, 2.4f, 3f, 1.1f, 1.0f);
+                    SetAreaCosts(18f, 1.6f, 3.2f, 1.8f, 1.1f, 1.0f, 1.5f);
                     break;
                 case "Carrier":
-                    SetAreaCosts(10f, 2.6f, 7f, 5f, 1.4f, 0.8f);
+                    SetAreaCosts(18f, 2.8f, 7f, 5.5f, 1.4f, 1.0f, 3.0f);
+                    break;
+                case "Nomad":
+                    SetAreaCosts(12f, 1.4f, 2.4f, 3.0f, 1.1f, 1.2f, 1.8f);
                     break;
                 default:
-                    SetAreaCosts(7f, 2.0f, 4f, 3f, 1.2f, 1.0f);
+                    SetAreaCosts(18f, 2.0f, 4f, 3f, 1.2f, 1.0f, 2.2f);
                     break;
             }
         }
@@ -97,7 +101,8 @@ namespace NavMeshDiplomaDemo
             float deepSandCost,
             float rockCost,
             float oasisCost,
-            float roadCost)
+            float roadCost,
+            float riverCost)
         {
             agent.SetAreaCost(HazardArea, hazardCost);
             agent.SetAreaCost(PackedSandArea, packedSandCost);
@@ -105,6 +110,7 @@ namespace NavMeshDiplomaDemo
             agent.SetAreaCost(RockArea, rockCost);
             agent.SetAreaCost(OasisArea, oasisCost);
             agent.SetAreaCost(RoadArea, roadCost);
+            agent.SetAreaCost(RiverArea, riverCost);
         }
 
         public void SetFinish(NavMeshDemoFinishZone zone, Vector3 finishPoint)
@@ -163,10 +169,12 @@ namespace NavMeshDiplomaDemo
 
             float maxZ = float.MinValue;
             float minZ = float.MaxValue;
+            float maxX = float.MinValue;
             for (int i = 0; i < agent.path.corners.Length; i++)
             {
                 maxZ = Mathf.Max(maxZ, agent.path.corners[i].z);
                 minZ = Mathf.Min(minZ, agent.path.corners[i].z);
+                maxX = Mathf.Max(maxX, agent.path.corners[i].x);
             }
 
             if (maxZ > 5.3f)
@@ -179,12 +187,80 @@ namespace NavMeshDiplomaDemo
                 return "South Oasis";
             }
 
+            if (maxZ > 2.5f && maxX > 4.5f)
+            {
+                return "Mountains/Canyon";
+            }
+
             if (Mathf.Abs(maxZ) < 3.2f && Mathf.Abs(minZ) < 3.2f)
             {
-                return "Central Dunes";
+                return "Central Desert";
             }
 
             return "mixed route";
+        }
+
+        public RouteResourceMetrics EstimateResources()
+        {
+            string route = DescribeRoute();
+            float distance = Mathf.Max(0f, PathLength);
+            RouteResourceMetrics metrics = new()
+            {
+                Distance = distance
+            };
+
+            float waterRate = 0.30f;
+            float foodRate = 0.16f;
+            float staminaRate = 0.22f;
+            float riskRate = 0.08f;
+
+            switch (route)
+            {
+                case "Central Desert":
+                    waterRate = 0.62f;
+                    foodRate = 0.18f;
+                    staminaRate = 0.34f;
+                    riskRate = 0.28f;
+                    break;
+                case "South Oasis":
+                    waterRate = 0.18f;
+                    foodRate = 0.14f;
+                    staminaRate = 0.22f;
+                    riskRate = 0.06f;
+                    metrics.OasisBonus = distance * 0.18f;
+                    break;
+                case "Mountains/Canyon":
+                    waterRate = 0.26f;
+                    foodRate = 0.24f;
+                    staminaRate = 0.55f;
+                    riskRate = 0.12f;
+                    break;
+                case "North Road":
+                    waterRate = 0.24f;
+                    foodRate = 0.13f;
+                    staminaRate = 0.16f;
+                    riskRate = 0.04f;
+                    break;
+            }
+
+            ApplyProfileResourceBias(ref waterRate, ref foodRate, ref staminaRate, ref riskRate, ref metrics);
+
+            metrics.Water = Mathf.Max(0f, distance * waterRate - metrics.OasisBonus);
+            metrics.Food = distance * foodRate;
+            metrics.Stamina = distance * staminaRate;
+            metrics.Risk = distance * riskRate;
+            return metrics;
+        }
+
+        public string GetProfileSummary()
+        {
+            return ProfileName switch
+            {
+                "Scout" => "Scout: горы/ущелья ок",
+                "Carrier" => "Carrier: любит дорогу",
+                "Nomad" => "Nomad: пустыня/оазис",
+                _ => $"{ProfileName}: balanced"
+            };
         }
 
         private void SetDestination(Vector3 nextDestination, bool initialPath)
@@ -222,6 +298,32 @@ namespace NavMeshDiplomaDemo
             }
         }
 
+        private void ApplyProfileResourceBias(
+            ref float waterRate,
+            ref float foodRate,
+            ref float staminaRate,
+            ref float riskRate,
+            ref RouteResourceMetrics metrics)
+        {
+            switch (ProfileName)
+            {
+                case "Scout":
+                    staminaRate *= 0.78f;
+                    riskRate *= 0.90f;
+                    break;
+                case "Carrier":
+                    waterRate *= 1.18f;
+                    staminaRate *= 1.28f;
+                    foodRate *= 1.10f;
+                    break;
+                case "Nomad":
+                    waterRate *= 0.72f;
+                    staminaRate *= 0.92f;
+                    metrics.OasisBonus *= 1.35f;
+                    break;
+            }
+        }
+
         private static float CalculatePathLength(NavMeshPath path)
         {
             if (path == null || path.corners.Length < 2)
@@ -237,5 +339,15 @@ namespace NavMeshDiplomaDemo
 
             return length;
         }
+    }
+
+    public struct RouteResourceMetrics
+    {
+        public float Distance;
+        public float Water;
+        public float Food;
+        public float Stamina;
+        public float Risk;
+        public float OasisBonus;
     }
 }

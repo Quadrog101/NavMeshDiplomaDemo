@@ -12,7 +12,7 @@ NavMeshProjectSettings:
   - name: Jump
     cost: 2
   - name: Hazard
-    cost: 7
+    cost: 18
   - name: PackedSand
     cost: 2
   - name: DeepSand
@@ -20,11 +20,11 @@ NavMeshProjectSettings:
   - name: Rock
     cost: 3
   - name: Oasis
-    cost: 1.2
+    cost: 1.1
   - name: Road
     cost: 1
-  - name: 
-    cost: 1
+  - name: River
+    cost: 3
   - name: 
     cost: 1
   - name: 

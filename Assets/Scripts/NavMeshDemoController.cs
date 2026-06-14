@@ -25,6 +25,7 @@ namespace NavMeshDiplomaDemo
         private const int RockArea = 6;
         private const int OasisArea = 7;
         private const int RoadArea = 8;
+        private const int RiverArea = 9;
 
         [Header("Scene Links")]
         [SerializeField] private NavMeshDemoFinishZone finishZone;
@@ -37,9 +38,10 @@ namespace NavMeshDiplomaDemo
         [SerializeField] private float packedSandCost = 2f;
         [SerializeField] private float deepSandCost = 4f;
         [SerializeField] private float rockAreaCost = 3f;
-        [SerializeField] private float oasisAreaCost = 1.2f;
+        [SerializeField] private float oasisAreaCost = 1.1f;
         [SerializeField] private float roadAreaCost = 1f;
-        [SerializeField] private float hazardAreaCost = 7f;
+        [SerializeField] private float riverAreaCost = 3f;
+        [SerializeField] private float hazardAreaCost = 18f;
         [SerializeField] private bool expensiveCostEnabled;
         [SerializeField] private bool obstacleEnabled;
         [SerializeField] private bool multipleAgentsEnabled;
@@ -128,25 +130,30 @@ namespace NavMeshDiplomaDemo
 
         private void OnGUI()
         {
-            const float hudWidth = 360f;
-            const float hudHeight = 340f;
+            RouteResourceMetrics metrics = FirstActiveAgent() != null
+                ? FirstActiveAgent().EstimateResources()
+                : default;
+
+            const float hudWidth = 430f;
+            const float hudHeight = 380f;
             float hudX = Mathf.Max(12f, Screen.width - hudWidth - 12f);
             GUI.Box(new Rect(hudX, 12, hudWidth, hudHeight), GUIContent.none);
             GUILayout.BeginArea(new Rect(hudX + 10f, 18, hudWidth - 20f, hudHeight - 12f));
 
-            GUILayout.Label("NavMesh Experiment");
-            GUILayout.Label($"Mode: {GetModeTitle()}");
-            GUILayout.Label($"Expected route: {GetExpectedRoute()}");
-            GUILayout.Label($"Actual route: {GetActualRoute()}");
+            GUILayout.Label("NavMesh: стоимости, ресурсы, препятствие");
+            GUILayout.Label($"Режим: {GetModeTitle()}");
+            GUILayout.Label($"Цель опыта: {GetExperimentGoal()}");
+            GUILayout.Label($"Expected: {GetExpectedRoute()}");
+            GUILayout.Label($"Actual: {GetActualRoute()}");
             GUILayout.Label($"Path status: {GetPathStatus()}");
             GUILayout.Label($"Repaths: {GetRepathCount()}");
-            GUILayout.Label($"Agents: {ActiveAgentCount} active / {ReachedAgentCount} reached");
-            GUILayout.Label($"Path length: {AveragePathLength():0.00} m");
-            GUILayout.Label($"Travel time: {AverageTravelTimeText()}");
-            GUILayout.Label($"Profiles: {GetActiveProfiles()}");
-            GUILayout.Label($"Routes: {GetActiveRoutes()}");
-            GUILayout.Label($"Terrain costs: Road {roadAreaCost:0.0} | Packed {packedSandCost:0.0} | Dunes {deepSandCost:0.0}");
-            GUILayout.Label($"More costs: Rock {rockAreaCost:0.0} | Oasis {oasisAreaCost:0.0} | Hazard {CurrentHazardCost():0.0}");
+            GUILayout.Label($"Агенты: {ActiveAgentCount} active / {ReachedAgentCount} reached");
+            GUILayout.Label($"Длина: {AveragePathLength():0.00} m   Время: {AverageTravelTimeText()}");
+            GUILayout.Label($"Профили: {GetActiveProfiles()}");
+            GUILayout.Label($"Маршруты: {GetActiveRoutes()}");
+            GUILayout.Label($"Стоимость: Road {CurrentRoadCost():0.0} | Sand {CurrentPackedSandCost():0.0}/{CurrentDeepSandCost():0.0} | Hazard {CurrentHazardCost():0.0}");
+            GUILayout.Label($"Стоимость: Oasis {CurrentOasisCost():0.0} | Rock {CurrentRockCost():0.0} | River {CurrentRiverCost():0.0}");
+            GUILayout.Label($"Ресурсы: вода {metrics.Water:0.0} | еда {metrics.Food:0.0} | выносл. {metrics.Stamina:0.0} | риск {metrics.Risk:0.0} | oasis -{metrics.OasisBonus:0.0}");
             GUILayout.Label($"Obstacle: {(obstacleEnabled ? "ON" : "OFF")}   FPS: {fps:0}");
             GUILayout.Label($"Conclusion: {GetConclusion()}");
             GUILayout.Space(4);
@@ -299,10 +306,6 @@ namespace NavMeshDiplomaDemo
                 mode = NavMeshDemoMode.DynamicObstacle;
                 expensiveCostEnabled = false;
             }
-            else if (mode == NavMeshDemoMode.DynamicObstacle)
-            {
-                mode = NavMeshDemoMode.ShortestPath;
-            }
 
             ApplyCurrentSettings();
             ScheduleDelayedRepath();
@@ -339,6 +342,7 @@ namespace NavMeshDiplomaDemo
             NavMesh.SetAreaCost(RockArea, rockAreaCost);
             NavMesh.SetAreaCost(OasisArea, oasisAreaCost);
             NavMesh.SetAreaCost(RoadArea, roadAreaCost);
+            NavMesh.SetAreaCost(RiverArea, riverAreaCost);
 
             if (dynamicObstacle != null)
             {
@@ -420,6 +424,36 @@ namespace NavMeshDiplomaDemo
             return expensiveCostEnabled ? hazardAreaCost : normalAreaCost;
         }
 
+        private float CurrentPackedSandCost()
+        {
+            return expensiveCostEnabled ? packedSandCost : normalAreaCost;
+        }
+
+        private float CurrentDeepSandCost()
+        {
+            return expensiveCostEnabled ? deepSandCost : normalAreaCost;
+        }
+
+        private float CurrentRockCost()
+        {
+            return expensiveCostEnabled ? rockAreaCost : 1.1f;
+        }
+
+        private float CurrentOasisCost()
+        {
+            return expensiveCostEnabled ? oasisAreaCost : normalAreaCost;
+        }
+
+        private float CurrentRoadCost()
+        {
+            return roadAreaCost;
+        }
+
+        private float CurrentRiverCost()
+        {
+            return expensiveCostEnabled ? riverAreaCost : normalAreaCost;
+        }
+
         private float AveragePathLength()
         {
             int count = 0;
@@ -459,10 +493,22 @@ namespace NavMeshDiplomaDemo
             return mode switch
             {
                 NavMeshDemoMode.ShortestPath => "1 Shortest path",
-                NavMeshDemoMode.WeightedCost => "2 Weighted terrain",
+                NavMeshDemoMode.WeightedCost => "2 Resource-weighted",
                 NavMeshDemoMode.DynamicObstacle => "3 Dynamic obstacle",
-                NavMeshDemoMode.MultiAgent => "4 Multi-agent",
+                NavMeshDemoMode.MultiAgent => "4 Multi-profile",
                 _ => mode.ToString()
+            };
+        }
+
+        private string GetExperimentGoal()
+        {
+            return mode switch
+            {
+                NavMeshDemoMode.ShortestPath => "показать выбор короткого пути при cost=1",
+                NavMeshDemoMode.WeightedCost => "показать смену маршрута из-за биомов/ресурсов",
+                NavMeshDemoMode.DynamicObstacle => "показать перестроение при завале Canyon Gate",
+                NavMeshDemoMode.MultiAgent => "сравнить Scout, Carrier и Nomad на одной карте",
+                _ => "-"
             };
         }
 
@@ -470,41 +516,23 @@ namespace NavMeshDiplomaDemo
         {
             return mode switch
             {
-                NavMeshDemoMode.ShortestPath => "Hazard cost=1 -> Central Dunes",
-                NavMeshDemoMode.WeightedCost => "Hazard cost=7 -> North/South route",
-                NavMeshDemoMode.DynamicObstacle => "Canyon gate may replan live",
-                NavMeshDemoMode.MultiAgent => "Scout/Carrier/Ranger compare routes",
+                NavMeshDemoMode.ShortestPath => "cost=1 -> Central Desert shortcut",
+                NavMeshDemoMode.WeightedCost => "cost=18/профильные штрафы -> Oasis/Road bypass",
+                NavMeshDemoMode.DynamicObstacle => "Canyon Gate toggle -> обход или live replan",
+                NavMeshDemoMode.MultiAgent => "Scout/Carrier/Nomad choose profile routes",
                 _ => "-"
             };
         }
 
         private string GetActualRoute()
         {
-            NavMeshPath path = FirstActivePath();
-            if (path == null || path.corners.Length < 2)
+            NavMeshDemoAgent demoAgent = FirstActiveAgent();
+            if (demoAgent == null || demoAgent.Agent.path == null || demoAgent.Agent.path.corners.Length < 2)
             {
                 return "not started";
             }
 
-            float maxZ = float.MinValue;
-            float minZ = float.MaxValue;
-            for (int i = 0; i < path.corners.Length; i++)
-            {
-                maxZ = Mathf.Max(maxZ, path.corners[i].z);
-                minZ = Mathf.Min(minZ, path.corners[i].z);
-            }
-
-            if (maxZ > 5.3f)
-            {
-                return obstacleEnabled ? "North Road around gate" : "North Road";
-            }
-
-            if (minZ < -5.0f)
-            {
-                return "South Oasis Path";
-            }
-
-            return obstacleEnabled ? "Central/Canyon blocked" : "Central Dunes";
+            return demoAgent.DescribeRoute();
         }
 
         private NavMeshPath FirstActivePath()
@@ -553,10 +581,10 @@ namespace NavMeshDiplomaDemo
         {
             return mode switch
             {
-                NavMeshDemoMode.ShortestPath => "equal costs prefer distance",
-                NavMeshDemoMode.WeightedCost => "terrain weights change route choice",
-                NavMeshDemoMode.DynamicObstacle => "carving triggers live replanning",
-                NavMeshDemoMode.MultiAgent => "profiles value terrain differently",
+                NavMeshDemoMode.ShortestPath => "низкая цена зон дает короткий маршрут",
+                NavMeshDemoMode.WeightedCost => "стоимость биомов меняет выбор пути",
+                NavMeshDemoMode.DynamicObstacle => "NavMeshObstacle carving вызывает replanning",
+                NavMeshDemoMode.MultiAgent => "профили по-разному оценивают один NavMesh",
                 _ => "-"
             };
         }
@@ -568,7 +596,7 @@ namespace NavMeshDiplomaDemo
             {
                 if (demoAgent.gameObject.activeSelf)
                 {
-                    profiles.Add(demoAgent.ProfileName);
+                    profiles.Add(demoAgent.GetProfileSummary());
                 }
             }
 
