@@ -12,7 +12,7 @@ NavMeshProjectSettings:
   - name: Jump
     cost: 2
   - name: Expensive
-    cost: 8
+    cost: 18
   - name: 
     cost: 1
   - name: 

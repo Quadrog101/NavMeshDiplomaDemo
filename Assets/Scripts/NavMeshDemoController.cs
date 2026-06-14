@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Text;
 using Unity.AI.Navigation;
 using UnityEngine;
 using UnityEngine.AI;
@@ -12,9 +11,9 @@ namespace NavMeshDiplomaDemo
     public enum NavMeshDemoMode
     {
         ShortestPath,
-        CostAware,
+        WeightedCost,
         DynamicObstacle,
-        MultipleAgents
+        MultiAgent
     }
 
     public sealed class NavMeshDemoController : MonoBehaviour
@@ -22,14 +21,14 @@ namespace NavMeshDiplomaDemo
         private const int ExpensiveArea = 3;
 
         [Header("Scene Links")]
-        [SerializeField] private Transform target;
+        [SerializeField] private NavMeshDemoFinishZone finishZone;
         [SerializeField] private NavMeshSurface navMeshSurface;
         [SerializeField] private GameObject dynamicObstacle;
         [SerializeField] private List<NavMeshDemoAgent> agents = new();
 
         [Header("Experiment Settings")]
         [SerializeField] private float normalAreaCost = 1f;
-        [SerializeField] private float expensiveAreaCost = 8f;
+        [SerializeField] private float expensiveAreaCost = 18f;
         [SerializeField] private bool expensiveCostEnabled;
         [SerializeField] private bool obstacleEnabled;
         [SerializeField] private bool multipleAgentsEnabled;
@@ -38,9 +37,9 @@ namespace NavMeshDiplomaDemo
         private readonly Vector3[] spawnOffsets =
         {
             new(0f, 0f, 0f),
-            new(-0.75f, 0f, 1.1f),
-            new(-0.75f, 0f, -1.1f),
-            new(-1.5f, 0f, 2.2f)
+            new(-0.7f, 0f, 1.15f),
+            new(-0.7f, 0f, -1.15f),
+            new(-1.4f, 0f, 0f)
         };
 
         private Vector3 baseSpawnPosition;
@@ -50,8 +49,38 @@ namespace NavMeshDiplomaDemo
         private float fps;
         private bool initialized;
 
-        private void Awake()
+        private int ActiveAgentCount
         {
+            get
+            {
+                int count = 0;
+                foreach (NavMeshDemoAgent demoAgent in agents)
+                {
+                    if (demoAgent.gameObject.activeSelf)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
+        }
+
+        private int ReachedAgentCount
+        {
+            get
+            {
+                int count = 0;
+                foreach (NavMeshDemoAgent demoAgent in agents)
+                {
+                    if (demoAgent.gameObject.activeSelf && demoAgent.HasReachedTarget)
+                    {
+                        count++;
+                    }
+                }
+
+                return count;
+            }
         }
 
         private void Start()
@@ -81,54 +110,61 @@ namespace NavMeshDiplomaDemo
                 baseSpawnRotation = agents[0].transform.rotation;
             }
 
-            foreach (NavMeshDemoAgent demoAgent in agents)
-            {
-                demoAgent.SetTarget(target);
-            }
-
+            AssignFinishPoints();
             initialized = true;
         }
 
         private void OnGUI()
         {
-            const int width = 460;
-            GUILayout.BeginArea(new Rect(16, 16, width, Screen.height - 32), GUI.skin.box);
+            const float hudWidth = 360f;
+            const float hudHeight = 250f;
+            float hudX = Mathf.Max(12f, Screen.width - hudWidth - 12f);
+            GUI.Box(new Rect(hudX, 12, hudWidth, hudHeight), GUIContent.none);
+            GUILayout.BeginArea(new Rect(hudX + 10f, 18, hudWidth - 20f, hudHeight - 12f));
 
-            GUILayout.Label("NavMesh Diploma Demo");
+            GUILayout.Label("NavMesh Experiment");
+            GUILayout.Label($"Mode: {GetModeTitle()}");
+            GUILayout.Label($"Expected route: {GetExpectedRoute()}");
+            GUILayout.Label($"Actual route: {GetActualRoute()}");
+            GUILayout.Label($"Agents: {ActiveAgentCount} active / {ReachedAgentCount} reached");
+            GUILayout.Label($"Path length: {AveragePathLength():0.00} m");
+            GUILayout.Label($"Travel time: {AverageTravelTimeText()}");
+            GUILayout.Label($"Expensive cost: {CurrentExpensiveCost():0.0}");
+            GUILayout.Label($"Obstacle: {(obstacleEnabled ? "ON" : "OFF")}   FPS: {fps:0}");
             GUILayout.Space(4);
-            GUILayout.Label("Space - старт | R - сброс | C - стоимость | O - препятствие | N - NPC");
-            GUILayout.Space(8);
-            GUILayout.Label($"Режим: {GetModeTitle()}");
-            GUILayout.Label($"Стоимость Expensive: {(expensiveCostEnabled ? expensiveAreaCost : normalAreaCost):0.0}");
-            GUILayout.Label($"Динамическое препятствие: {(obstacleEnabled ? "включено" : "выключено")}");
-            GUILayout.Label($"Активных агентов: {ActiveAgentCount}");
-            GUILayout.Label($"FPS: {fps:0}");
-            GUILayout.Space(8);
+            GUILayout.Label("1 shortest | 2 weighted | 3 obstacle | 4 multi-agent");
+            GUILayout.Label("Space start | R reset | C cost | O obstacle | N agents");
 
-            StringBuilder builder = new();
-            for (int i = 0; i < agents.Count; i++)
-            {
-                if (!agents[i].gameObject.activeSelf)
-                {
-                    continue;
-                }
-
-                builder.Append("NPC ");
-                builder.Append(i + 1);
-                builder.Append(": путь ");
-                builder.Append(agents[i].PathLength.ToString("0.00"));
-                builder.Append(" м, время ");
-                builder.Append(agents[i].TravelTime > 0f ? agents[i].TravelTime.ToString("0.00") : "-");
-                builder.Append(" c, перестроений ");
-                builder.AppendLine(agents[i].RepathCount.ToString());
-            }
-
-            GUILayout.Label(builder.ToString());
             GUILayout.EndArea();
         }
 
         private void HandleInput()
         {
+            if (WasPressed(KeyCode.Alpha1, "Digit1"))
+            {
+                ApplyModeAndReset(NavMeshDemoMode.ShortestPath);
+            }
+
+            if (WasPressed(KeyCode.Alpha2, "Digit2"))
+            {
+                ApplyModeAndReset(NavMeshDemoMode.WeightedCost);
+            }
+
+            if (WasPressed(KeyCode.Alpha3, "Digit3"))
+            {
+                ApplyModeAndReset(NavMeshDemoMode.DynamicObstacle);
+            }
+
+            if (WasPressed(KeyCode.Alpha4, "Digit4"))
+            {
+                ApplyModeAndReset(NavMeshDemoMode.MultiAgent);
+            }
+
+            if (WasPressed(KeyCode.M, "M"))
+            {
+                CycleMode();
+            }
+
             if (WasPressed(KeyCode.Space, "Space"))
             {
                 StartMovement();
@@ -173,9 +209,22 @@ namespace NavMeshDiplomaDemo
 #endif
         }
 
+        public void CycleMode()
+        {
+            int next = ((int)mode + 1) % System.Enum.GetValues(typeof(NavMeshDemoMode)).Length;
+            ApplyModeAndReset((NavMeshDemoMode)next);
+        }
+
+        public void ApplyModeAndReset(NavMeshDemoMode nextMode)
+        {
+            ApplyMode(nextMode);
+            ResetDemo();
+        }
+
         public void StartMovement()
         {
             InitializeIfNeeded();
+            RecalculateAllPaths();
 
             foreach (NavMeshDemoAgent demoAgent in agents)
             {
@@ -189,6 +238,7 @@ namespace NavMeshDiplomaDemo
         public void ResetDemo()
         {
             InitializeIfNeeded();
+            AssignFinishPoints();
 
             for (int i = 0; i < agents.Count; i++)
             {
@@ -217,21 +267,36 @@ namespace NavMeshDiplomaDemo
         public void ToggleCostMode()
         {
             expensiveCostEnabled = !expensiveCostEnabled;
-            mode = expensiveCostEnabled ? NavMeshDemoMode.CostAware : NavMeshDemoMode.ShortestPath;
+            mode = expensiveCostEnabled ? NavMeshDemoMode.WeightedCost : NavMeshDemoMode.ShortestPath;
             ApplyCurrentSettings();
+            ResetDemo();
+            RecalculateAllPaths();
         }
 
         public void ToggleObstacle()
         {
             obstacleEnabled = !obstacleEnabled;
-            mode = obstacleEnabled ? NavMeshDemoMode.DynamicObstacle : mode;
+            if (obstacleEnabled)
+            {
+                mode = NavMeshDemoMode.DynamicObstacle;
+            }
+            else if (mode == NavMeshDemoMode.DynamicObstacle)
+            {
+                mode = NavMeshDemoMode.ShortestPath;
+            }
+
             ApplyCurrentSettings();
+            ResetDemo();
         }
 
         public void ToggleNpcCount()
         {
             multipleAgentsEnabled = !multipleAgentsEnabled;
-            mode = multipleAgentsEnabled ? NavMeshDemoMode.MultipleAgents : mode;
+            if (multipleAgentsEnabled)
+            {
+                mode = NavMeshDemoMode.MultiAgent;
+            }
+
             ApplyCurrentSettings();
             ResetDemo();
         }
@@ -241,23 +306,37 @@ namespace NavMeshDiplomaDemo
             InitializeIfNeeded();
 
             mode = nextMode;
-            expensiveCostEnabled = mode == NavMeshDemoMode.CostAware || mode == NavMeshDemoMode.MultipleAgents;
+            expensiveCostEnabled = mode == NavMeshDemoMode.WeightedCost || mode == NavMeshDemoMode.MultiAgent;
             obstacleEnabled = mode == NavMeshDemoMode.DynamicObstacle;
-            multipleAgentsEnabled = mode == NavMeshDemoMode.MultipleAgents;
+            multipleAgentsEnabled = mode == NavMeshDemoMode.MultiAgent;
             ApplyCurrentSettings();
         }
 
         private void ApplyCurrentSettings()
         {
-            // Одна и та же геометрия показывает разницу между кратчайшим и стоимостным маршрутом.
-            NavMesh.SetAreaCost(ExpensiveArea, expensiveCostEnabled ? expensiveAreaCost : normalAreaCost);
+            NavMesh.SetAreaCost(ExpensiveArea, CurrentExpensiveCost());
 
             if (dynamicObstacle != null)
             {
                 dynamicObstacle.SetActive(obstacleEnabled);
             }
+        }
 
-            RecalculateAllPaths();
+        private void AssignFinishPoints()
+        {
+            if (finishZone == null)
+            {
+                return;
+            }
+
+            int finishPointCount = multipleAgentsEnabled ? agents.Count : 1;
+
+            for (int i = 0; i < agents.Count; i++)
+            {
+                int finishPointIndex = multipleAgentsEnabled ? i : 0;
+                Vector3 finishPoint = finishZone.GetDestinationPoint(finishPointIndex, finishPointCount);
+                agents[i].SetFinish(finishZone, finishPoint);
+            }
         }
 
         private void RecalculateAllPaths()
@@ -284,33 +363,102 @@ namespace NavMeshDiplomaDemo
             }
         }
 
+        private float CurrentExpensiveCost()
+        {
+            return expensiveCostEnabled ? expensiveAreaCost : normalAreaCost;
+        }
+
+        private float AveragePathLength()
+        {
+            int count = 0;
+            float total = 0f;
+
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                if (demoAgent.gameObject.activeSelf)
+                {
+                    total += demoAgent.PathLength;
+                    count++;
+                }
+            }
+
+            return count == 0 ? 0f : total / count;
+        }
+
+        private string AverageTravelTimeText()
+        {
+            int count = 0;
+            float total = 0f;
+
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                if (demoAgent.gameObject.activeSelf && demoAgent.HasReachedTarget)
+                {
+                    total += demoAgent.TravelTime;
+                    count++;
+                }
+            }
+
+            return count == 0 ? "-" : $"{total / count:0.00} s";
+        }
+
         private string GetModeTitle()
         {
             return mode switch
             {
-                NavMeshDemoMode.ShortestPath => "кратчайший путь",
-                NavMeshDemoMode.CostAware => "учет стоимости зон",
-                NavMeshDemoMode.DynamicObstacle => "динамическое препятствие",
-                NavMeshDemoMode.MultipleAgents => "несколько NPC",
+                NavMeshDemoMode.ShortestPath => "1 Shortest path",
+                NavMeshDemoMode.WeightedCost => "2 Weighted cost",
+                NavMeshDemoMode.DynamicObstacle => "3 Dynamic obstacle",
+                NavMeshDemoMode.MultiAgent => "4 Multi-agent",
                 _ => mode.ToString()
             };
         }
 
-        private int ActiveAgentCount
+        private string GetExpectedRoute()
         {
-            get
+            return mode switch
             {
-                int count = 0;
-                foreach (NavMeshDemoAgent demoAgent in agents)
-                {
-                    if (demoAgent.gameObject.activeSelf)
-                    {
-                        count++;
-                    }
-                }
+                NavMeshDemoMode.ShortestPath => "central shortcut",
+                NavMeshDemoMode.WeightedCost => "long bypass (high cost)",
+                NavMeshDemoMode.DynamicObstacle => "bypass (shortcut blocked)",
+                NavMeshDemoMode.MultiAgent => "several finish points",
+                _ => "-"
+            };
+        }
 
-                return count;
+        private string GetActualRoute()
+        {
+            NavMeshPath path = FirstActivePath();
+            if (path == null || path.corners.Length < 2)
+            {
+                return "not started";
             }
+
+            float maxAbsZ = 0f;
+            for (int i = 0; i < path.corners.Length; i++)
+            {
+                maxAbsZ = Mathf.Max(maxAbsZ, Mathf.Abs(path.corners[i].z));
+            }
+
+            if (obstacleEnabled)
+            {
+                return maxAbsZ > 2.4f ? "bypass around obstacle" : "shortcut blocked";
+            }
+
+            return maxAbsZ > 2.4f ? "long bypass" : "central shortcut";
+        }
+
+        private NavMeshPath FirstActivePath()
+        {
+            foreach (NavMeshDemoAgent demoAgent in agents)
+            {
+                if (demoAgent.gameObject.activeSelf && demoAgent.Agent != null)
+                {
+                    return demoAgent.Agent.path;
+                }
+            }
+
+            return null;
         }
     }
 }

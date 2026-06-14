@@ -6,16 +6,14 @@ namespace NavMeshDiplomaDemo
     [RequireComponent(typeof(NavMeshAgent))]
     public sealed class NavMeshDemoAgent : MonoBehaviour
     {
-        [SerializeField] private float destinationEpsilon = 0.35f;
+        [SerializeField] private float destinationEpsilon = 0.55f;
 
         private NavMeshAgent agent;
-        private Vector3 startPosition;
-        private Quaternion startRotation;
-        private Transform target;
+        private NavMeshDemoFinishZone finishZone;
+        private Vector3 destination;
         private bool isRunning;
         private bool hasReachedTarget;
         private float startTime;
-        private Vector3 lastDestination;
 
         public NavMeshAgent Agent => agent;
         public float PathLength { get; private set; }
@@ -26,9 +24,7 @@ namespace NavMeshDiplomaDemo
         private void Awake()
         {
             agent = GetComponent<NavMeshAgent>();
-            startPosition = transform.position;
-            startRotation = transform.rotation;
-            lastDestination = transform.position;
+            destination = transform.position;
         }
 
         private void Update()
@@ -38,10 +34,9 @@ namespace NavMeshDiplomaDemo
                 return;
             }
 
-            // Метрика длины берется из фактических углов текущего NavMeshPath.
             PathLength = CalculatePathLength(agent.path);
 
-            if (agent.remainingDistance <= Mathf.Max(destinationEpsilon, agent.stoppingDistance))
+            if (HasArrived())
             {
                 hasReachedTarget = true;
                 isRunning = false;
@@ -50,18 +45,15 @@ namespace NavMeshDiplomaDemo
             }
         }
 
-        public void SetTarget(Transform nextTarget)
+        public void SetFinish(NavMeshDemoFinishZone zone, Vector3 finishPoint)
         {
-            target = nextTarget;
-            if (target != null)
-            {
-                lastDestination = target.position;
-            }
+            finishZone = zone;
+            destination = finishPoint;
         }
 
         public void Begin()
         {
-            if (target == null)
+            if (finishZone == null)
             {
                 return;
             }
@@ -70,7 +62,7 @@ namespace NavMeshDiplomaDemo
             hasReachedTarget = false;
             startTime = Time.time;
             TravelTime = 0f;
-            SetDestination(target.position, true);
+            SetDestination(destination, true);
         }
 
         public void ResetAgent(Vector3 position, Quaternion rotation)
@@ -80,7 +72,6 @@ namespace NavMeshDiplomaDemo
             TravelTime = 0f;
             PathLength = 0f;
             RepathCount = 0;
-            lastDestination = target != null ? target.position : position;
 
             agent.ResetPath();
             agent.Warp(position);
@@ -90,27 +81,40 @@ namespace NavMeshDiplomaDemo
 
         public void RecalculatePath()
         {
-            if (target == null)
+            if (finishZone == null)
             {
                 return;
             }
 
             bool shouldKeepMoving = isRunning;
-            SetDestination(target.position, false);
+            SetDestination(destination, false);
             agent.isStopped = !shouldKeepMoving;
         }
 
-        private void SetDestination(Vector3 destination, bool initialPath)
+        private void SetDestination(Vector3 nextDestination, bool initialPath)
         {
             agent.isStopped = false;
-            agent.SetDestination(destination);
-            lastDestination = destination;
+            agent.SetDestination(nextDestination);
 
-            // Перестроения считаем только во время эксперимента, а не при предпросмотре пути.
             if (!initialPath && isRunning)
             {
                 RepathCount++;
             }
+        }
+
+        private bool HasArrived()
+        {
+            if (finishZone != null && finishZone.Contains(transform.position))
+            {
+                return true;
+            }
+
+            if (agent.remainingDistance <= Mathf.Max(destinationEpsilon, agent.stoppingDistance))
+            {
+                return true;
+            }
+
+            return Vector3.Distance(transform.position, destination) <= destinationEpsilon;
         }
 
         private static float CalculatePathLength(NavMeshPath path)

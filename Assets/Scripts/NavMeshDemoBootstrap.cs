@@ -22,13 +22,14 @@ namespace NavMeshDiplomaDemo
 
         private void BuildRuntimeScene()
         {
-            Material floorMaterial = CreateMaterial("Runtime Floor", new Color(0.72f, 0.75f, 0.70f));
-            Material wallMaterial = CreateMaterial("Runtime Wall", new Color(0.28f, 0.31f, 0.34f));
-            Material expensiveMaterial = CreateMaterial("Runtime Expensive", new Color(0.95f, 0.62f, 0.25f));
-            Material obstacleMaterial = CreateMaterial("Runtime Obstacle", new Color(0.83f, 0.22f, 0.18f));
-            Material agentMaterial = CreateMaterial("Runtime Agent", new Color(0.18f, 0.46f, 0.86f));
-            Material targetMaterial = CreateMaterial("Runtime Target", new Color(0.18f, 0.72f, 0.34f));
-            Material pathMaterial = CreateMaterial("Runtime Path", new Color(0.08f, 0.19f, 0.28f));
+            Material floorMaterial = CreateMaterial("Runtime Floor", new Color(0.70f, 0.73f, 0.68f));
+            Material wallMaterial = CreateMaterial("Runtime Wall", new Color(0.25f, 0.28f, 0.31f));
+            Material expensiveMaterial = CreateMaterial("Runtime Expensive", new Color(0.95f, 0.58f, 0.18f));
+            Material bypassMaterial = CreateMaterial("Runtime Bypass", new Color(0.52f, 0.64f, 0.86f));
+            Material obstacleMaterial = CreateMaterial("Runtime Obstacle", new Color(0.82f, 0.18f, 0.16f));
+            Material agentMaterial = CreateMaterial("Runtime Agent", new Color(0.12f, 0.38f, 0.82f));
+            Material finishMaterial = CreateMaterial("Runtime Finish", new Color(0.14f, 0.68f, 0.30f));
+            Material pathMaterial = CreateMaterial("Runtime Path", new Color(0.02f, 0.10f, 0.16f));
 
             GameObject root = new("NavMesh Demo Runtime");
             GameObject geometryRoot = new("Geometry");
@@ -41,31 +42,54 @@ namespace NavMeshDiplomaDemo
             CreateCube("East Border", new Vector3(12f, 0.55f, 0f), new Vector3(0.35f, 1.1f, 18f), wallMaterial, geometryRoot.transform);
 
             CreateCube("Barrier Upper A", new Vector3(0f, 0.55f, 6.75f), new Vector3(0.45f, 1.1f, 3.7f), wallMaterial, geometryRoot.transform);
-            CreateCube("Barrier Upper B", new Vector3(0f, 0.55f, 2.35f), new Vector3(0.45f, 1.1f, 2.3f), wallMaterial, geometryRoot.transform);
-            CreateCube("Barrier Lower A", new Vector3(0f, 0.55f, -2.35f), new Vector3(0.45f, 1.1f, 2.3f), wallMaterial, geometryRoot.transform);
+            CreateCube("Barrier Upper B", new Vector3(0f, 0.55f, 2.1f), new Vector3(0.45f, 1.1f, 1.9f), wallMaterial, geometryRoot.transform);
+            CreateCube("Barrier Lower A", new Vector3(0f, 0.55f, -2.1f), new Vector3(0.45f, 1.1f, 1.9f), wallMaterial, geometryRoot.transform);
             CreateCube("Barrier Lower B", new Vector3(0f, 0.55f, -6.75f), new Vector3(0.45f, 1.1f, 3.7f), wallMaterial, geometryRoot.transform);
 
-            // Центральный проход короче, но этот объем назначает ему дорогой NavMesh area.
-            GameObject costZone = CreateCube("Expensive Cost Zone", new Vector3(0f, 0.02f, 0f), new Vector3(4.8f, 0.04f, 2.2f), expensiveMaterial, geometryRoot.transform);
+            GameObject costZone = CreateCube("Expensive Cost Zone", new Vector3(0f, 0.02f, 0f), new Vector3(6.2f, 0.04f, 2.8f), expensiveMaterial, geometryRoot.transform);
             costZone.GetComponent<Collider>().enabled = false;
             NavMeshModifierVolume modifierVolume = costZone.AddComponent<NavMeshModifierVolume>();
             modifierVolume.area = ExpensiveArea;
             modifierVolume.center = Vector3.zero;
-            modifierVolume.size = new Vector3(4.8f, 1.2f, 2.2f);
+            modifierVolume.size = new Vector3(6.2f, 1.2f, 2.8f);
 
-            CreateRouteLabel("Short expensive gate", new Vector3(0f, 0.06f, 0f), geometryRoot.transform);
-            CreateRouteLabel("Long upper route", new Vector3(0f, 0.06f, 4.6f), geometryRoot.transform);
-            CreateRouteLabel("Long lower route", new Vector3(0f, 0.06f, -4.6f), geometryRoot.transform);
+            GameObject upperBypass = CreateCube("Upper Bypass Marker", new Vector3(0f, 0.01f, 4.7f), new Vector3(20f, 0.02f, 1.0f), bypassMaterial, geometryRoot.transform);
+            GameObject lowerBypass = CreateCube("Lower Bypass Marker", new Vector3(0f, 0.01f, -4.7f), new Vector3(20f, 0.02f, 1.0f), bypassMaterial, geometryRoot.transform);
+            upperBypass.GetComponent<Collider>().enabled = false;
+            lowerBypass.GetComponent<Collider>().enabled = false;
 
-            GameObject dynamicObstacle = CreateCube("Dynamic Obstacle (O)", new Vector3(0f, 0.55f, 0f), new Vector3(1.5f, 1.1f, 1.5f), obstacleMaterial, root.transform);
+            CreateRouteLabel("EXPENSIVE SHORTCUT", new Vector3(0f, 0.08f, 0f), geometryRoot.transform);
+            CreateRouteLabel("LONG BYPASS", new Vector3(0f, 0.08f, 4.7f), geometryRoot.transform);
+            CreateRouteLabel("LONG BYPASS", new Vector3(0f, 0.08f, -4.7f), geometryRoot.transform);
+
+            GameObject startZone = CreateCylinder("Start Zone", new Vector3(-10f, 0.03f, 0f), new Vector3(1.8f, 0.06f, 1.8f), agentMaterial, root.transform);
+            startZone.GetComponent<Collider>().enabled = false;
+            GameObject finish = CreateCube("Finish Zone", new Vector3(10f, 0.04f, 0f), new Vector3(4.2f, 0.08f, 6.4f), finishMaterial, root.transform);
+            BoxCollider finishCollider = finish.GetComponent<BoxCollider>();
+            finishCollider.isTrigger = true;
+            finishCollider.size = new Vector3(1f, 30f, 1f);
+            finishCollider.center = Vector3.zero;
+            finishCollider.enabled = false;
+            NavMeshDemoFinishZone finishZone = finish.AddComponent<NavMeshDemoFinishZone>();
+
+            CreateRouteLabel("START", new Vector3(-10f, 0.08f, -2.0f), root.transform);
+            CreateRouteLabel("FINISH ZONE", new Vector3(10f, 0.10f, -3.2f), root.transform);
+
+            GameObject surfaceObject = new("NavMesh Surface");
+            surfaceObject.transform.SetParent(root.transform);
+            NavMeshSurface surface = surfaceObject.AddComponent<NavMeshSurface>();
+            surface.collectObjects = CollectObjects.All;
+            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
+            surface.BuildNavMesh();
+            finishCollider.enabled = true;
+
+            GameObject dynamicObstacle = CreateCube("Dynamic Obstacle (O)", new Vector3(0f, 0.75f, 0f), new Vector3(2.4f, 1.5f, 2.6f), obstacleMaterial, root.transform);
+            dynamicObstacle.GetComponent<Collider>().isTrigger = true;
             NavMeshObstacle obstacle = dynamicObstacle.AddComponent<NavMeshObstacle>();
             obstacle.shape = NavMeshObstacleShape.Box;
-            obstacle.size = new Vector3(1.5f, 1.1f, 1.5f);
+            obstacle.size = new Vector3(2.4f, 1.5f, 2.6f);
             obstacle.carving = true;
             dynamicObstacle.SetActive(false);
-
-            CreateCylinder("Start", new Vector3(-10f, 0.03f, 0f), new Vector3(1.2f, 0.06f, 1.2f), agentMaterial, root.transform);
-            GameObject target = CreateCylinder("Target", new Vector3(10f, 0.03f, 0f), new Vector3(1.2f, 0.06f, 1.2f), targetMaterial, root.transform);
 
             List<NavMeshDemoAgent> agents = new();
             for (int i = 0; i < 4; i++)
@@ -75,17 +99,10 @@ namespace NavMeshDiplomaDemo
                 agents.Add(agent.GetComponent<NavMeshDemoAgent>());
             }
 
-            GameObject surfaceObject = new("NavMesh Surface");
-            surfaceObject.transform.SetParent(root.transform);
-            NavMeshSurface surface = surfaceObject.AddComponent<NavMeshSurface>();
-            surface.collectObjects = CollectObjects.All;
-            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
-            surface.BuildNavMesh();
-
             GameObject controllerObject = new("Demo Controller");
             controllerObject.transform.SetParent(root.transform);
             NavMeshDemoController controller = controllerObject.AddComponent<NavMeshDemoController>();
-            SetPrivateField(controller, "target", target.transform);
+            SetPrivateField(controller, "finishZone", finishZone);
             SetPrivateField(controller, "navMeshSurface", surface);
             SetPrivateField(controller, "dynamicObstacle", dynamicObstacle);
             SetPrivateField(controller, "agents", agents);
@@ -117,13 +134,14 @@ namespace NavMeshDiplomaDemo
             agent.speed = 3.5f;
             agent.angularSpeed = 360f;
             agent.acceleration = 12f;
+            agent.stoppingDistance = 0.15f;
             agent.autoRepath = true;
             agent.avoidancePriority = 40 + index;
 
             agentObject.AddComponent<NavMeshDemoAgent>();
             LineRenderer line = agentObject.AddComponent<LineRenderer>();
             line.sharedMaterial = pathMaterial;
-            line.widthMultiplier = 0.08f;
+            line.widthMultiplier = 0.12f;
             line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             line.receiveShadows = false;
             NavMeshDemoPathRenderer pathRenderer = agentObject.AddComponent<NavMeshDemoPathRenderer>();
@@ -179,9 +197,10 @@ namespace NavMeshDiplomaDemo
             GameObject cameraObject = new("Main Camera");
             Camera camera = cameraObject.AddComponent<Camera>();
             cameraObject.tag = "MainCamera";
-            cameraObject.transform.position = new Vector3(0f, 16f, -13f);
-            cameraObject.transform.rotation = Quaternion.Euler(58f, 0f, 0f);
-            camera.fieldOfView = 45f;
+            cameraObject.transform.position = new Vector3(0f, 24f, 0f);
+            cameraObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            camera.orthographic = true;
+            camera.orthographicSize = 11f;
         }
 
         private static void CreateLighting()
